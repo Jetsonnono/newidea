@@ -1,5 +1,5 @@
 node_modules/
-episodes/01/dist/frames/
-episodes/01/dist/stills/
-episodes/01/dist/score-broadcast.wav
+episodes/*/dist/frames/
+episodes/*/dist/stills/
+episodes/*/dist/score-broadcast.wav
 *.log

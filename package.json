@@ -8,7 +8,8 @@
     "frames": "node scripts/render-frames.mjs",
     "audio": "python3 scripts/synth-audio.py",
     "compose": "bash scripts/compose.sh",
-    "build": "node scripts/render-frames.mjs && python3 scripts/synth-audio.py && bash scripts/compose.sh"
+    "build": "node scripts/render-frames.mjs && python3 scripts/synth-audio.py && bash scripts/compose.sh",
+    "build:02": "node scripts/render-frames.mjs --episode 02 --port 4175 && python3 scripts/synth-audio.py 02 && bash scripts/compose.sh 02"
   },
   "devDependencies": {
     "playwright": "1.49.1"

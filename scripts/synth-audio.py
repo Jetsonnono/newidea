@@ -7,19 +7,21 @@ import struct
 import wave
 from pathlib import Path
 
+import sys
+
 ROOT = Path(__file__).resolve().parents[1]
-TIMELINE = json.loads((ROOT / "episodes" / "01" / "timeline.json").read_text())
-OUT = ROOT / "episodes" / "01" / "dist" / "score.wav"
-LOUDNESS = ROOT / "episodes" / "01" / "dist" / "loudness.json"
+EPISODE = sys.argv[1] if len(sys.argv) > 1 else "01"
+TIMELINE = json.loads((ROOT / "episodes" / EPISODE / "timeline.json").read_text())
+OUT = ROOT / "episodes" / EPISODE / "dist" / "score.wav"
+LOUDNESS = ROOT / "episodes" / EPISODE / "dist" / "loudness.json"
 
 SR = 48000
 DUR = float(TIMELINE["duration"])
-BPM = 100
-BEAT = 60.0 / BPM
 N = int(round(DUR * SR))
 CUTS = [scene["start"] for scene in TIMELINE["scenes"]]
 
-# A dorian cells written for this film. Not a quotation.
+# Episode 01 stays on the original A dorian bed. Episode 02 is a slower D pentatonic bed.
+BPM = 100
 CELLS = [
     [0, 7, 5, 3, 10, 0, 3, 5],
     [3, 10, 7, 5, 0, 3, 5, 7],
@@ -31,6 +33,38 @@ DEGREE = {
     7: 329.63,   # E4
     10: 392.00,  # G4
 }
+CELL_SPLIT = 10
+BASS_RETURN = 14
+BASS_MAIN = 110.0
+BASS_LIFT = 87.31
+PAD_FROM = 24.0
+PAD_TO = 33.6
+PAD_MAIN = (110.0, 164.81)
+PAD_LIFT = (87.31, 130.81)
+
+if EPISODE == "02":
+    BPM = 84
+    CELLS = [
+        [0, 4, 7, 2, 7, 4, 0, 11],
+        [7, 11, 4, 2, 0, 4, 7, 11],
+    ]
+    DEGREE = {
+        0: 146.83,   # D3
+        2: 164.81,   # E3
+        4: 185.00,   # F#3
+        7: 220.00,   # A3
+        11: 246.94,  # B3
+    }
+    CELL_SPLIT = 8
+    BASS_RETURN = 14
+    BASS_MAIN = 73.42   # D2
+    BASS_LIFT = 98.00   # G2
+    PAD_FROM = 20.0
+    PAD_TO = 36.5
+    PAD_MAIN = (73.42, 110.00)
+    PAD_LIFT = (98.00, 146.83)
+
+BEAT = 60.0 / BPM
 
 
 def add(buf, i, value):
@@ -98,13 +132,13 @@ def render():
     eighth = 0
     while t < DUR - 0.02:
         bar = eighth // 16
-        cell = CELLS[0 if bar < 10 else 1]
+        cell = CELLS[0 if bar < CELL_SPLIT else 1]
         degree = cell[eighth % 8]
         octave = 2 if eighth % 8 in (0, 4) else 1
         if eighth % 2 == 0:
             pluck(buf, t, DEGREE[degree] * octave, 0.16)
         if eighth % 8 == 0:
-            root = 110.0 if bar < 10 or bar >= 14 else 87.31  # A2, then D2, then A2
+            root = BASS_MAIN if bar < CELL_SPLIT or bar >= BASS_RETURN else BASS_LIFT
             bass(buf, t, root, 0.2)
             kick(buf, t, 0.62)
         elif eighth % 8 == 4:
@@ -124,10 +158,10 @@ def render():
     for i in range(N):
         t = i / SR
         trem = 0.82 + 0.18 * math.sin(2 * math.pi * 0.08 * t)
-        if 24.0 <= t < 33.6:
-            root, fifth = 87.31, 130.81
+        if PAD_FROM <= t < PAD_TO:
+            root, fifth = PAD_LIFT
         else:
-            root, fifth = 110.0, 164.81
+            root, fifth = PAD_MAIN
         buf[i] += 0.075 * trem * (
             math.sin(2 * math.pi * root * t) + 0.55 * math.sin(2 * math.pi * fifth * t)
         )

@@ -5,8 +5,6 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const episodeDir = path.join(root, "episodes", "01");
-const timeline = JSON.parse(fs.readFileSync(path.join(episodeDir, "timeline.json"), "utf8"));
 
 function arg(name, fallback) {
   const index = process.argv.indexOf(name);
@@ -14,11 +12,18 @@ function arg(name, fallback) {
   return process.argv[index + 1];
 }
 
+const episode = arg("--episode", "01");
+const episodeDir = path.join(root, "episodes", episode);
+const timeline = JSON.parse(fs.readFileSync(path.join(episodeDir, "timeline.json"), "utf8"));
+
 const timesArg = arg("--times", "");
 const times = timesArg
   ? timesArg.split(",").map(Number)
   : null;
-const outDir = path.resolve(root, arg("--out", times ? "episodes/01/dist/stills" : "episodes/01/dist/frames"));
+const outDir = path.resolve(
+  root,
+  arg("--out", times ? "episodes/" + episode + "/dist/stills" : "episodes/" + episode + "/dist/frames"),
+);
 fs.mkdirSync(outDir, { recursive: true });
 
 const port = Number(arg("--port", "4173"));
@@ -34,7 +39,7 @@ function sleep(ms) {
 async function waitForServer() {
   for (let i = 0; i < 40; i++) {
     try {
-      const response = await fetch("http://127.0.0.1:" + port + "/episodes/01/timeline.json");
+      const response = await fetch("http://127.0.0.1:" + port + "/episodes/" + episode + "/timeline.json");
       if (response.ok) return;
     } catch {
       await sleep(150);
@@ -57,7 +62,7 @@ try {
     viewport: { width: timeline.width, height: timeline.height },
     deviceScaleFactor: 1,
   });
-  await page.goto("http://127.0.0.1:" + port + "/episodes/01/index.html?export=1", {
+  await page.goto("http://127.0.0.1:" + port + "/episodes/" + episode + "/index.html?export=1", {
     waitUntil: "networkidle",
   });
   await page.waitForFunction(() => window.__ready === true);
