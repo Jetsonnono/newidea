@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>02 二十四节气</title>
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #000;
+      color: #f6f1e6;
+      font-family: "WenQuanYi Micro Hei", "文泉驿微米黑", sans-serif;
+    }
+    body { display: flex; flex-direction: column; }
+    #stage {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    canvas {
+      height: 100%;
+      width: auto;
+      max-width: 100%;
+      background: #16140f;
+    }
+    #bar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      box-sizing: border-box;
+      width: min(520px, 100%);
+      margin: 0 auto;
+      padding: 12px 16px 18px;
+    }
+    input[type="range"] { flex: 1; accent-color: #e4b15a; }
+    #clock { font-size: 13px; letter-spacing: 0.04em; }
+    body.export #bar { display: none; }
+    body.export #stage { display: block; height: 1920px; }
+    body.export canvas { width: 1080px; height: 1920px; }
+  </style>
+</head>
+<body>
+  <div id="stage"><canvas id="c" width="1080" height="1920"></canvas></div>
+  <div id="bar">
+    <input id="scrub" type="range" min="0" max="48000" value="0" step="33" />
+    <span id="clock">0:00.0</span>
+  </div>
+  <script src="./render.js"></script>
+  <script>
+    const exportMode = new URLSearchParams(location.search).has("export");
+    if (exportMode) document.body.classList.add("export");
+    const canvas = document.getElementById("c");
+    const ctx = canvas.getContext("2d", { alpha: false });
+    const scrub = document.getElementById("scrub");
+    const clock = document.getElementById("clock");
+    let episode = null;
+    let playing = !exportMode;
+    let started = performance.now();
+    let offset = 0;
+
+    function format(t) {
+      const m = Math.floor(t / 60);
+      const s = t - m * 60;
+      return m + ":" + s.toFixed(1).padStart(4, "0");
+    }
+
+    fetch("./timeline.json")
+      .then(function (response) { return response.json(); })
+      .then(function (data) {
+        episode = data;
+        scrub.max = String(Math.round(data.duration * 1000));
+        window.render = function (t) {
+          drawFrame(ctx, episode, t);
+        };
+        window.__ready = true;
+        window.render(0);
+        if (!exportMode) requestAnimationFrame(loop);
+      });
+
+    function loop(now) {
+      if (episode && playing) {
+        const t = ((now - started) / 1000 + offset) % episode.duration;
+        window.render(t);
+        scrub.value = String(Math.round(t * 1000));
+        clock.textContent = format(t);
+      }
+      requestAnimationFrame(loop);
+    }
+
+    scrub.addEventListener("input", function () {
+      playing = false;
+      const t = Number(scrub.value) / 1000;
+      offset = t;
+      started = performance.now();
+      if (window.render) window.render(t);
+      clock.textContent = format(t);
+    });
+  </script>
+</body>
+</html>

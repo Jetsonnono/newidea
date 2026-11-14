@@ -1,0 +1,17 @@
+{
+  "name": "contest-explainers",
+  "private": true,
+  "description": "大学生竞赛讲解。第 01 条是计算机设计大赛的原创竖屏短片。",
+  "scripts": {
+    "preview": "python3 -m http.server 4173 --bind 127.0.0.1",
+    "stills": "node scripts/render-frames.mjs --times 0.40,2.40,6.40,12.40,19.20,26.80,34.20,40.20",
+    "frames": "node scripts/render-frames.mjs",
+    "audio": "python3 scripts/synth-audio.py",
+    "compose": "bash scripts/compose.sh",
+    "build": "node scripts/render-frames.mjs && python3 scripts/synth-audio.py && bash scripts/compose.sh",
+    "build:02": "node scripts/render-frames.mjs --episode 02 --port 4175 && python3 scripts/synth-audio.py 02 && bash scripts/compose.sh 02"
+  },
+  "devDependencies": {
+    "playwright": "1.49.1"
+  }
+}
