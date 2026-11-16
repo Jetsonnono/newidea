@@ -3,28 +3,28 @@ import * as THREE from 'three';
 export const VIEW_PRESETS = {
   aerial: {
     label: '鸟瞰全景',
-    position: new THREE.Vector3(28, 26, 32),
-    target: new THREE.Vector3(0, 5, 0),
+    position: new THREE.Vector3(38, 32, 42),
+    target: new THREE.Vector3(0, 6, 0),
   },
   human: {
     label: '人视仰拍',
-    position: new THREE.Vector3(4, 1.65, 22),
-    target: new THREE.Vector3(0, 9, 0),
+    position: new THREE.Vector3(8, 1.7, 28),
+    target: new THREE.Vector3(0, 10, 0),
   },
   atrium: {
     label: '中庭室内光影',
-    position: new THREE.Vector3(1.5, 3.8, 2.5),
-    target: new THREE.Vector3(0, 9, -1),
+    position: new THREE.Vector3(1.2, 6.8, 7.2),
+    target: new THREE.Vector3(-0.5, 4.2, -1.5),
   },
   explode: {
     label: '结构爆炸图',
-    position: new THREE.Vector3(34, 22, 18),
-    target: new THREE.Vector3(0, 10, 0),
+    position: new THREE.Vector3(52, 36, 46),
+    target: new THREE.Vector3(0, 16, 0),
   },
   wireframe: {
     label: '白模线框分析模式',
-    position: new THREE.Vector3(-24, 16, 28),
-    target: new THREE.Vector3(0, 6, 0),
+    position: new THREE.Vector3(-32, 22, 36),
+    target: new THREE.Vector3(0, 8, 0),
   },
 };
 
@@ -58,7 +58,7 @@ export function createViewController(camera, controls) {
 
   function update(dt = 1 / 60) {
     if (!state.animating) return state.current;
-    state.t = Math.min(1, state.t + dt * 1.35);
+    state.t = Math.min(1, state.t + dt * 1.2);
     const e = easeInOutCubic(state.t);
     camera.position.lerpVectors(state.fromPos, state.toPos, e);
     controls.target.lerpVectors(state.fromTarget, state.toTarget, e);
@@ -67,7 +67,13 @@ export function createViewController(camera, controls) {
     return state.current;
   }
 
-  return { setView, update, get current() { return state.current; } };
+  return {
+    setView,
+    update,
+    get current() {
+      return state.current;
+    },
+  };
 }
 
 function easeInOutCubic(t) {

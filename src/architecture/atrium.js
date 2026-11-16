@@ -1,62 +1,79 @@
 import * as THREE from 'three';
+import {
+  createAsymmetricDomeGeometry,
+  sampleDomePoint,
+} from '../geometry/helpers.js';
+
+const DOME = {
+  baseR: 13.5,
+  height: 7.8,
+  southTilt: 0.18,
+  asymmetry: 0.14,
+};
 
 /**
- * Hyperbolic steel lattice shell with amber / lapis BIPV glazing.
- * Colored caustic spots are projected onto the floor as textured discs.
+ * Asymmetric hyperbolic BIPV atrium:
+ * - outer gradient glass shell
+ * - inner white diagrid (instanced tubes + node spheres)
  */
 export function createAtrium(materials) {
   const group = new THREE.Group();
   group.name = 'Atrium';
-  group.position.y = 2.4;
+  // World Y is applied by building layer groups
+  group.position.y = 0;
 
-  const radius = 9.5;
-  const height = 11;
-  const radialSeg = 48;
-  const heightSeg = 18;
-
-  const shellGeo = createHyperboloidGeometry(radius, height, radialSeg, heightSeg);
-  const glass = new THREE.Mesh(shellGeo, materials.bipvAmber);
-  // Blend two materials via vertex colors / dual shells
-  glass.material = createGradientBIPVMaterial(materials);
+  // —— Outer BIPV glass ——
+  const glassGeo = createAsymmetricDomeGeometry(DOME, 56, 24);
+  // Open oculus: shrink top ring visually by discarding? Keep soft crown hole via scale
+  const glass = new THREE.Mesh(glassGeo, materials.bipvGlass);
+  glass.name = 'BIPVShell';
   glass.castShadow = true;
   glass.receiveShadow = true;
-  glass.name = 'BIPVShell';
   glass.userData.layer = 'atriumGlass';
   glass.userData.restY = 0;
   group.add(glass);
 
-  // Steel diagrid
-  const lattice = createDiagrid(radius, height, 16, 10, materials.steel);
-  lattice.userData.layer = 'atriumSteel';
-  lattice.userData.restY = 0;
-  group.add(lattice);
+  // Soft oculus rim
+  const rim = new THREE.Mesh(
+    new THREE.TorusGeometry(2.4, 0.12, 10, 48),
+    materials.steel
+  );
+  rim.rotation.x = Math.PI / 2;
+  rim.position.set(0.4, DOME.height * 0.88, 1.35);
+  rim.castShadow = true;
+  rim.userData.layer = 'atriumSteel';
+  rim.userData.restY = rim.position.y;
+  group.add(rim);
+
+  // —— Inner white diagrid ——
+  const diagrid = createDiagridInstanced(materials.steel, 18, 10);
+  diagrid.userData.layer = 'atriumSteel';
+  diagrid.userData.restY = 0;
+  group.add(diagrid);
 
   // Ring beams
-  for (let i = 0; i < 5; i += 1) {
-    const t = i / 4;
-    const y = t * height;
-    const r = hyperboloidRadius(radius, height, y);
+  for (let i = 0; i < 6; i += 1) {
+    const v = 0.08 + (i / 5) * 0.82;
+    const pts = [];
+    for (let k = 0; k <= 64; k += 1) {
+      const u = k / 64;
+      pts.push(sampleDomePoint(u, v, DOME));
+    }
+    const curve = new THREE.CatmullRomCurve3(pts, true);
     const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(r, 0.07, 8, 64),
+      new THREE.TubeGeometry(curve, 96, 0.055, 6, true),
       materials.steel
     );
-    ring.rotation.x = Math.PI / 2;
-    ring.position.y = y;
     ring.castShadow = true;
     ring.userData.layer = 'atriumSteel';
-    ring.userData.restY = y;
+    ring.userData.restY = 0;
     group.add(ring);
   }
 
-  // Interior floor disc for light play
+  // Interior floor + walkway
   const floor = new THREE.Mesh(
-    new THREE.CircleGeometry(8.2, 64),
-    new THREE.MeshStandardMaterial({
-      color: 0xd8ddd4,
-      roughness: 0.55,
-      metalness: 0.05,
-      name: 'atriumFloor',
-    })
+    new THREE.CircleGeometry(11.2, 64),
+    materials.courtyard
   );
   floor.rotation.x = -Math.PI / 2;
   floor.position.y = 0.02;
@@ -65,167 +82,148 @@ export function createAtrium(materials) {
   floor.userData.restY = floor.position.y;
   group.add(floor);
 
-  // Colored light spots (caustics stand-ins)
-  const spots = new THREE.Group();
-  spots.name = 'CausticSpots';
-  spots.userData.layer = 'caustics';
-  const palette = [0xc9893a, 0x1f4d7a, 0xd4a05a, 0x3a6ea5, 0xb87333, 0x245f86];
-  for (let i = 0; i < 14; i += 1) {
-    const spot = new THREE.Mesh(
-      new THREE.CircleGeometry(0.35 + Math.random() * 0.55, 24),
-      new THREE.MeshBasicMaterial({
-        color: palette[i % palette.length],
-        transparent: true,
-        opacity: 0.28,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-      })
-    );
-    spot.rotation.x = -Math.PI / 2;
-    const a = (i / 14) * Math.PI * 2;
-    const d = 1.2 + (i % 5) * 1.05;
-    spot.position.set(Math.cos(a) * d, 0.04, Math.sin(a) * d * 0.85);
-    spot.userData.phase = Math.random() * Math.PI * 2;
-    spot.userData.restY = spot.position.y;
-    spots.add(spot);
-  }
-  group.add(spots);
-  group.userData.causticSpots = spots;
-
-  // Inner walkway ring
   const walk = new THREE.Mesh(
-    new THREE.RingGeometry(5.8, 7.4, 64),
+    new THREE.RingGeometry(7.2, 10.2, 64),
     materials.concrete
   );
   walk.rotation.x = -Math.PI / 2;
-  walk.position.y = 0.03;
+  walk.position.y = 0.04;
   walk.receiveShadow = true;
   walk.userData.layer = 'atriumFloor';
   walk.userData.restY = walk.position.y;
   group.add(walk);
 
+  // Interior tree
+  const trunk = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.25, 0.38, 4.2, 12),
+    materials.earthFill
+  );
+  trunk.position.y = 2.1;
+  trunk.castShadow = true;
+  trunk.userData.layer = 'atriumFloor';
+  trunk.userData.restY = trunk.position.y;
+  group.add(trunk);
+
+  const canopy = new THREE.Mesh(
+    new THREE.SphereGeometry(2.8, 16, 12),
+    materials.shrub
+  );
+  canopy.position.y = 5.2;
+  canopy.scale.set(1.15, 0.8, 1.15);
+  canopy.castShadow = true;
+  canopy.userData.layer = 'atriumFloor';
+  canopy.userData.restY = canopy.position.y;
+  group.add(canopy);
+
+  // Interior columns
+  [-1, 1].forEach((sx) => {
+    [-1, 1].forEach((sz) => {
+      const col = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.55, 0.65, 7.5, 16),
+        materials.concrete
+      );
+      col.position.set(sx * 4.2, 3.75, sz * 3.6);
+      col.castShadow = true;
+      col.userData.layer = 'cores';
+      col.userData.restY = col.position.y;
+      group.add(col);
+    });
+  });
+
+  // Colored caustic spots on floor
+  const spots = new THREE.Group();
+  spots.name = 'CausticSpots';
+  spots.userData.layer = 'caustics';
+  const palette = [0xc9893a, 0x1f4d7a, 0xd4a05a, 0x3a6ea5, 0xb87333, 0x245f86, 0xc45a2a];
+  for (let i = 0; i < 18; i += 1) {
+    const spot = new THREE.Mesh(
+      new THREE.CircleGeometry(0.3 + Math.random() * 0.5, 20),
+      new THREE.MeshBasicMaterial({
+        color: palette[i % palette.length],
+        transparent: true,
+        opacity: 0.32,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      })
+    );
+    spot.rotation.x = -Math.PI / 2;
+    const a = (i / 18) * Math.PI * 2;
+    const d = 1.4 + (i % 6) * 0.9;
+    spot.position.set(Math.cos(a) * d, 0.05, Math.sin(a) * d * 0.9);
+    spot.userData.phase = Math.random() * Math.PI * 2;
+    spot.userData.baseX = spot.position.x;
+    spot.userData.baseZ = spot.position.z;
+    spot.userData.restY = spot.position.y;
+    spots.add(spot);
+  }
+  group.add(spots);
+  group.userData.causticSpots = spots;
+  group.userData.dome = DOME;
+
   return group;
 }
 
-function hyperboloidRadius(baseR, height, y) {
-  const t = (y / height) * 2 - 1;
-  return baseR * Math.sqrt(1 + t * t * 0.55) * (0.72 + 0.28 * Math.cos(t * Math.PI * 0.5));
-}
-
-function createHyperboloidGeometry(baseR, height, radialSeg, heightSeg) {
-  const positions = [];
-  const normals = [];
-  const uvs = [];
-  const indices = [];
-  const colors = [];
-
-  for (let j = 0; j <= heightSeg; j += 1) {
-    const v = j / heightSeg;
-    const y = v * height;
-    const r = hyperboloidRadius(baseR, height, y);
-    for (let i = 0; i <= radialSeg; i += 1) {
-      const u = i / radialSeg;
-      const theta = u * Math.PI * 2;
-      const x = Math.cos(theta) * r;
-      const z = Math.sin(theta) * r;
-      positions.push(x, y, z);
-      const nx = Math.cos(theta);
-      const nz = Math.sin(theta);
-      normals.push(nx, 0.15, nz);
-      uvs.push(u, v);
-      // amber → lapis vertical/azimuth blend
-      const amber = 1 - Math.abs(Math.sin(theta * 2)) * 0.55;
-      colors.push(
-        0.78 * amber + 0.12 * (1 - amber),
-        0.54 * amber + 0.3 * (1 - amber),
-        0.23 * amber + 0.48 * (1 - amber)
-      );
-    }
-  }
-
-  for (let j = 0; j < heightSeg; j += 1) {
-    for (let i = 0; i < radialSeg; i += 1) {
-      const a = j * (radialSeg + 1) + i;
-      const b = a + radialSeg + 1;
-      indices.push(a, b, a + 1);
-      indices.push(b, b + 1, a + 1);
-    }
-  }
-
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
-  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-  geo.setIndex(indices);
-  geo.computeVertexNormals();
-  return geo;
-}
-
-function createGradientBIPVMaterial(materials) {
-  const mat = materials.bipvAmber.clone();
-  mat.vertexColors = true;
-  mat.color.set(0xffffff);
-  mat.name = 'bipvGradient';
-  mat.transmission = 0.68;
-  mat.opacity = 0.86;
-  mat.transparent = true;
-  mat.roughness = 0.14;
-  mat.thickness = 0.5;
-  mat.attenuationColor = new THREE.Color(0xb8884a);
-  mat.attenuationDistance = 1.6;
-  mat.side = THREE.DoubleSide;
-  return mat;
-}
-
-function createDiagrid(baseR, height, meridians, rings, material) {
+function createDiagridInstanced(material, meridians, rings) {
   const group = new THREE.Group();
   group.name = 'Diagrid';
 
-  for (let m = 0; m < meridians; m += 1) {
-    const theta = (m / meridians) * Math.PI * 2;
-    const pts = [];
-    for (let k = 0; k <= rings; k += 1) {
-      const y = (k / rings) * height;
-      const r = hyperboloidRadius(baseR, height, y);
-      const twist = (k / rings) * 0.55;
-      pts.push(
-        new THREE.Vector3(
-          Math.cos(theta + twist) * r,
-          y,
-          Math.sin(theta + twist) * r
-        )
-      );
-    }
-    const curve = new THREE.CatmullRomCurve3(pts);
-    const tube = new THREE.Mesh(
-      new THREE.TubeGeometry(curve, 32, 0.045, 5, false),
-      material
-    );
-    tube.castShadow = true;
-    tube.userData.restY = 0;
-    group.add(tube);
+  const strutGeo = new THREE.CylinderGeometry(0.07, 0.07, 1, 6);
+  strutGeo.translate(0, 0.5, 0); // pivot at bottom
+  const nodeGeo = new THREE.SphereGeometry(0.12, 8, 8);
 
-    // Counter-twist set
-    const pts2 = pts.map((p, k) => {
-      const y = (k / rings) * height;
-      const r = hyperboloidRadius(baseR, height, y);
-      const twist = -(k / rings) * 0.55;
-      return new THREE.Vector3(
-        Math.cos(theta + twist) * r,
-        y,
-        Math.sin(theta + twist) * r
-      );
-    });
-    const curve2 = new THREE.CatmullRomCurve3(pts2);
-    const tube2 = new THREE.Mesh(
-      new THREE.TubeGeometry(curve2, 32, 0.04, 5, false),
-      material
-    );
-    tube2.castShadow = true;
-    tube2.userData.restY = 0;
-    group.add(tube2);
+  const strutDummy = new THREE.Object3D();
+  const nodeDummy = new THREE.Object3D();
+
+  // Collect strut transforms
+  const strutMats = [];
+  const nodeMats = [];
+  const up = new THREE.Vector3(0, 1, 0);
+
+  for (let m = 0; m < meridians; m += 1) {
+    for (let k = 0; k < rings; k += 1) {
+      const v0 = k / rings;
+      const v1 = (k + 1) / rings;
+      const u0 = m / meridians;
+      // Primary diagonal
+      const u1a = (m + 1) / meridians;
+      // Counter diagonal
+      const u1b = (m - 1 + meridians) / meridians;
+
+      [[u0, v0, u1a, v1], [u0, v0, u1b, v1]].forEach(([ua, va, ub, vb]) => {
+        const p0 = sampleDomePoint(ua, va, DOME);
+        const p1 = sampleDomePoint(ub, vb, DOME);
+        const dir = new THREE.Vector3().subVectors(p1, p0);
+        const len = dir.length();
+        strutDummy.position.copy(p0);
+        strutDummy.quaternion.setFromUnitVectors(up, dir.clone().normalize());
+        strutDummy.scale.set(1, len, 1);
+        strutDummy.updateMatrix();
+        strutMats.push(strutDummy.matrix.clone());
+      });
+
+      const node = sampleDomePoint(u0, v0, DOME);
+      nodeDummy.position.copy(node);
+      nodeDummy.scale.setScalar(1);
+      nodeDummy.updateMatrix();
+      nodeMats.push(nodeDummy.matrix.clone());
+    }
   }
+
+  const struts = new THREE.InstancedMesh(strutGeo, material, strutMats.length);
+  strutMats.forEach((mat, i) => struts.setMatrixAt(i, mat));
+  struts.instanceMatrix.needsUpdate = true;
+  struts.castShadow = true;
+  struts.userData.restY = 0;
+  struts.userData.layer = 'atriumSteel';
+  group.add(struts);
+
+  const nodes = new THREE.InstancedMesh(nodeGeo, material, nodeMats.length);
+  nodeMats.forEach((mat, i) => nodes.setMatrixAt(i, mat));
+  nodes.instanceMatrix.needsUpdate = true;
+  nodes.castShadow = true;
+  nodes.userData.restY = 0;
+  nodes.userData.layer = 'atriumSteel';
+  group.add(nodes);
 
   return group;
 }
@@ -236,16 +234,10 @@ export function updateCaustics(atrium, sunDir, intensity) {
   const t = performance.now() * 0.00035;
   spots.children.forEach((spot, i) => {
     const phase = spot.userData.phase || 0;
-    spot.material.opacity = 0.12 + intensity * 0.32 + Math.sin(t + phase) * 0.05;
-    const drift = 0.15 * Math.sin(t * 0.7 + i);
-    spot.scale.setScalar(0.85 + intensity * 0.45 + drift);
-    // Soft bias toward sun azimuth projection
-    spot.position.x += sunDir.x * 0.002;
-    spot.position.z += sunDir.z * 0.002;
-    const len = Math.hypot(spot.position.x, spot.position.z);
-    if (len > 7) {
-      spot.position.x *= 0.98;
-      spot.position.z *= 0.98;
-    }
+    spot.material.opacity = 0.18 + intensity * 0.4 + Math.sin(t + phase) * 0.05;
+    spot.scale.setScalar(0.9 + intensity * 0.4 + 0.12 * Math.sin(t * 0.7 + i));
+    const shift = 2.4 * (1 - THREE.MathUtils.clamp(sunDir.y, 0, 1));
+    spot.position.x = spot.userData.baseX - sunDir.x * shift;
+    spot.position.z = spot.userData.baseZ - sunDir.z * shift;
   });
 }

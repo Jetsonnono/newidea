@@ -48,7 +48,7 @@ controls.enableDamping = true;
 controls.dampingFactor = 0.06;
 controls.maxPolarAngle = Math.PI * 0.49;
 controls.minDistance = 3;
-controls.maxDistance = 90;
+controls.maxDistance = 120;
 controls.update();
 
 const materials = createMaterials();
