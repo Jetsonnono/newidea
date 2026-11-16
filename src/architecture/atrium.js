@@ -3,6 +3,7 @@ import {
   createAsymmetricDomeGeometry,
   sampleDomePoint,
 } from '../geometry/helpers.js';
+import { createCausticsTexture } from '../materials/perovskiteTextures.js';
 
 const DOME = {
   baseR: 13.5,
@@ -29,6 +30,8 @@ export function createAtrium(materials) {
   glass.name = 'BIPVShell';
   glass.castShadow = true;
   glass.receiveShadow = true;
+  // Allow soft contact shadows on adjacent opaque surfaces
+  glass.material.shadowSide = THREE.FrontSide;
   glass.userData.layer = 'atriumGlass';
   glass.userData.restY = 0;
   group.add(glass);
@@ -130,27 +133,52 @@ export function createAtrium(materials) {
     });
   });
 
-  // Colored caustic spots on floor
+  // Dynamic colored caustics overlay (moves with sun)
   const spots = new THREE.Group();
   spots.name = 'CausticSpots';
   spots.userData.layer = 'caustics';
-  const palette = [0xc9893a, 0x1f4d7a, 0xd4a05a, 0x3a6ea5, 0xb87333, 0x245f86, 0xc45a2a];
-  for (let i = 0; i < 18; i += 1) {
+
+  const causticsTex = createCausticsTexture(512);
+  causticsTex.repeat.set(2.2, 2.2);
+  const causticsMat = new THREE.MeshBasicMaterial({
+    map: causticsTex,
+    transparent: true,
+    opacity: 0.55,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    toneMapped: false,
+  });
+  const causticsPlane = new THREE.Mesh(
+    new THREE.PlaneGeometry(18, 18, 1, 1),
+    causticsMat
+  );
+  causticsPlane.rotation.x = -Math.PI / 2;
+  causticsPlane.position.y = 0.06;
+  causticsPlane.userData.restY = 0.06;
+  causticsPlane.name = 'CausticsOverlay';
+  spots.add(causticsPlane);
+  spots.userData.overlay = causticsPlane;
+  spots.userData.causticsTex = causticsTex;
+
+  // Accent discs for sharper amber / lapis pools
+  const palette = [0xc9893a, 0x1f4d7a, 0xd4a05a, 0x3a6ea5, 0xc45a2a];
+  for (let i = 0; i < 12; i += 1) {
     const spot = new THREE.Mesh(
-      new THREE.CircleGeometry(0.3 + Math.random() * 0.5, 20),
+      new THREE.CircleGeometry(0.35 + (i % 4) * 0.12, 20),
       new THREE.MeshBasicMaterial({
         color: palette[i % palette.length],
         transparent: true,
-        opacity: 0.32,
+        opacity: 0.28,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
+        toneMapped: false,
       })
     );
     spot.rotation.x = -Math.PI / 2;
-    const a = (i / 18) * Math.PI * 2;
-    const d = 1.4 + (i % 6) * 0.9;
-    spot.position.set(Math.cos(a) * d, 0.05, Math.sin(a) * d * 0.9);
-    spot.userData.phase = Math.random() * Math.PI * 2;
+    const a = (i / 12) * Math.PI * 2;
+    const d = 1.6 + (i % 5) * 0.85;
+    spot.position.set(Math.cos(a) * d, 0.07, Math.sin(a) * d * 0.9);
+    spot.userData.phase = i * 0.7;
     spot.userData.baseX = spot.position.x;
     spot.userData.baseZ = spot.position.z;
     spot.userData.restY = spot.position.y;
@@ -232,11 +260,27 @@ export function updateCaustics(atrium, sunDir, intensity) {
   const spots = atrium?.userData?.causticSpots;
   if (!spots) return;
   const t = performance.now() * 0.00035;
+  const shift = 3.2 * (1 - THREE.MathUtils.clamp(sunDir.y, 0.05, 1));
+
+  // Scroll caustics texture opposite to sun azimuth so pools track light
+  const tex = spots.userData.causticsTex;
+  if (tex) {
+    tex.offset.x = -sunDir.x * 0.35 + t * 0.02;
+    tex.offset.y = -sunDir.z * 0.35 + t * 0.015;
+  }
+  const overlay = spots.userData.overlay;
+  if (overlay) {
+    overlay.position.x = -sunDir.x * shift * 0.55;
+    overlay.position.z = -sunDir.z * shift * 0.55;
+    overlay.material.opacity = 0.28 + intensity * 0.45;
+    overlay.rotation.z = Math.atan2(sunDir.x, sunDir.z) * 0.25;
+  }
+
   spots.children.forEach((spot, i) => {
+    if (spot === overlay || spot.userData.baseX === undefined) return;
     const phase = spot.userData.phase || 0;
-    spot.material.opacity = 0.18 + intensity * 0.4 + Math.sin(t + phase) * 0.05;
-    spot.scale.setScalar(0.9 + intensity * 0.4 + 0.12 * Math.sin(t * 0.7 + i));
-    const shift = 2.4 * (1 - THREE.MathUtils.clamp(sunDir.y, 0, 1));
+    spot.material.opacity = 0.14 + intensity * 0.38 + Math.sin(t + phase) * 0.05;
+    spot.scale.setScalar(0.9 + intensity * 0.45 + 0.1 * Math.sin(t * 0.7 + i));
     spot.position.x = spot.userData.baseX - sunDir.x * shift;
     spot.position.z = spot.userData.baseZ - sunDir.z * shift;
   });

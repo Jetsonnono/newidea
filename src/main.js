@@ -5,12 +5,14 @@ import { createMaterials, setWireframeMode } from './materials.js';
 import { createBuilding, setExplodedView } from './architecture/building.js';
 import { updatePetalTracking } from './architecture/petals.js';
 import { updateCaustics } from './architecture/atrium.js';
-import { createEnvironment, updateSkyForSun } from './environment.js';
+import { createEnvironment } from './environment.js';
 import {
   computeSunState,
   createSunRig,
   applySunToRig,
 } from './systems/sun.js';
+import { createAtmosphere } from './systems/atmosphere.js';
+import { createPostProcessing } from './systems/postprocessing.js';
 import { computePowerKW, PEAK_KW } from './systems/power.js';
 import { createViewController } from './systems/views.js';
 import { exportScreenshot } from './systems/screenshot.js';
@@ -30,7 +32,7 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = 0.92;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 const scene = new THREE.Scene();
@@ -38,7 +40,7 @@ const camera = new THREE.PerspectiveCamera(
   42,
   window.innerWidth / window.innerHeight,
   0.1,
-  400
+  500
 );
 camera.position.set(28, 26, 32);
 
@@ -53,9 +55,12 @@ controls.update();
 
 const materials = createMaterials();
 const env = createEnvironment(scene, materials);
+const atmosphere = createAtmosphere(renderer, scene);
 const sunRig = createSunRig(scene);
 const building = createBuilding(materials);
 scene.add(building);
+
+const post = createPostProcessing(renderer, scene, camera);
 
 const viewController = createViewController(camera, controls);
 viewController.setView('aerial', true);
@@ -65,6 +70,7 @@ const state = {
   explodeAmount: 0,
   wireframe: false,
   alignment: 0.8,
+  envFrame: 0,
 };
 
 const ui = bindPanel({
@@ -75,13 +81,24 @@ const ui = bindPanel({
     viewController.setView(view);
     state.wireframe = view === 'wireframe';
     setWireframeMode(building, materials, state.wireframe);
+    // Soften bloom/SSAO in analytic wireframe mode
+    post.setEnabled(!state.wireframe);
+    if (state.wireframe) {
+      scene.background = new THREE.Color(0x1e2622);
+      scene.backgroundIntensity = 1;
+    } else {
+      atmosphere.updateEnvironment(true);
+    }
     state.explodeTarget = view === 'explode' ? 1 : 0;
   },
   async onExport({ transparent }) {
     ui.setPanelVisible(false);
-    // Wait a frame so UI hide paints
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-    await exportScreenshot(renderer, scene, camera, { transparent });
+    await exportScreenshot(renderer, scene, camera, {
+      transparent,
+      composer: post.composer,
+      onResizeComposer: post.setSize,
+    });
     ui.setPanelVisible(true);
   },
 });
@@ -92,24 +109,41 @@ state.minutes = ui.getMinutes();
 function syncSunAndSystems() {
   const sunState = computeSunState(state.minutes);
   applySunToRig(sunRig, sunState);
-  updateSkyForSun(env, sunState);
 
-  const alignment = updatePetalTracking(building.userData.parts.petals, sunState.direction);
+  atmosphere.setSunPosition(sunState.position);
+  // Rebuild env map every ~20 frames or when sun jumps
+  state.envFrame += 1;
+  if (state.envFrame % 20 === 0) {
+    atmosphere.updateEnvironment();
+  }
+
+  const alignment = updatePetalTracking(
+    building.userData.parts.petals,
+    sunState.direction
+  );
   state.alignment = alignment;
 
-  updateCaustics(building.userData.parts.atrium, sunState.direction, sunState.irradiance);
+  updateCaustics(
+    building.userData.parts.atrium,
+    sunState.direction,
+    sunState.irradiance
+  );
 
   const kw = computePowerKW(sunState.irradiance, alignment);
   ui.updatePower(kw, alignment, PEAK_KW);
 
-  // Soft fog tint with sun
   if (scene.fog) {
-    scene.fog.color.setHSL(0.18, 0.12, 0.68 + sunState.irradiance * 0.05);
+    scene.fog.color.setHSL(0.55, 0.1, 0.55 + sunState.irradiance * 0.08);
+    scene.fog.density = state.wireframe ? 0.004 : 0.001;
   }
-  if (!state.wireframe) {
-    scene.background = new THREE.Color().setHSL(0.45, 0.12, 0.72 + sunState.irradiance * 0.04);
-  } else {
-    scene.background = new THREE.Color(0x2a322c);
+
+  // Exposure breathes with irradiance; stay conservative under ACES + bloom
+  renderer.toneMappingExposure = 0.72 + sunState.irradiance * 0.14;
+  if (scene.backgroundIntensity !== undefined) {
+    scene.backgroundIntensity = 0.55 + sunState.irradiance * 0.2;
+  }
+  if (scene.environmentIntensity !== undefined) {
+    scene.environmentIntensity = 0.4 + sunState.irradiance * 0.15;
   }
 
   return sunState;
@@ -121,6 +155,7 @@ function onResize() {
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
+  post.setSize(w, h);
 }
 window.addEventListener('resize', onResize);
 
@@ -132,7 +167,6 @@ function animate() {
 
   viewController.update(dt);
 
-  // Smooth explode transition
   state.explodeAmount = THREE.MathUtils.lerp(
     state.explodeAmount,
     state.explodeTarget ?? 0,
@@ -142,11 +176,11 @@ function animate() {
 
   syncSunAndSystems();
   controls.update();
-  renderer.render(scene, camera);
+  post.render();
 }
 
 syncSunAndSystems();
+atmosphere.updateEnvironment(true);
 animate();
 
-// Expose for debugging in console
-window.HelioMatrix = { scene, camera, building, materials };
+window.HelioMatrix = { scene, camera, building, materials, post, atmosphere };

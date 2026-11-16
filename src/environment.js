@@ -116,61 +116,15 @@ export function createEnvironment(scene, materials) {
   }
   group.add(ridgeGroup);
 
-  const sky = createSkyDome();
-  sky.userData.hideOnExport = true;
-  group.add(sky);
-
+  // Physical Sky + PMREM are owned by systems/atmosphere.js
   scene.add(group);
-  scene.fog = new THREE.FogExp2(0xc5c0b0, 0.0028);
-  scene.background = new THREE.Color(0xb7c4c8);
+  // Light highland haze — keep subtle so Sky + env reflections read clearly
+  scene.fog = new THREE.FogExp2(0xb8c2c6, 0.0012);
+  scene.background = null;
 
-  return { group, sky, ground };
+  return { group, ground };
 }
 
-function createSkyDome() {
-  const geo = new THREE.SphereGeometry(200, 48, 32);
-  const mat = new THREE.ShaderMaterial({
-    side: THREE.BackSide,
-    depthWrite: false,
-    uniforms: {
-      topColor: { value: new THREE.Color(0x4f86b8) },
-      midColor: { value: new THREE.Color(0xc5d4d8) },
-      bottomColor: { value: new THREE.Color(0xd8c49a) },
-      offset: { value: 18 },
-      exponent: { value: 0.65 },
-    },
-    vertexShader: `
-      varying vec3 vWorldPosition;
-      void main() {
-        vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-        vWorldPosition = worldPosition.xyz;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-    `,
-    fragmentShader: `
-      uniform vec3 topColor;
-      uniform vec3 midColor;
-      uniform vec3 bottomColor;
-      uniform float offset;
-      uniform float exponent;
-      varying vec3 vWorldPosition;
-      void main() {
-        float h = normalize(vWorldPosition + vec3(0.0, offset, 0.0)).y;
-        float t = max(pow(max(h, 0.0), exponent), 0.0);
-        vec3 col = mix(bottomColor, midColor, smoothstep(-0.15, 0.4, h));
-        col = mix(col, topColor, t);
-        gl_FragColor = vec4(col, 1.0);
-      }
-    `,
-  });
-  return new THREE.Mesh(geo, mat);
-}
-
-export function updateSkyForSun(env, sunState) {
-  if (!env?.sky?.material?.uniforms) return;
-  const u = env.sky.material.uniforms;
-  const irr = sunState.irradiance;
-  u.topColor.value.setHSL(0.58, 0.48, 0.32 + irr * 0.22);
-  u.midColor.value.setHSL(0.5, 0.15, 0.72 + irr * 0.06);
-  u.bottomColor.value.setHSL(0.1, 0.32 + (1 - irr) * 0.15, 0.62);
+export function updateSkyForSun(_env, _sunState) {
+  // Kept for API compatibility; atmosphere system drives Sky uniforms.
 }

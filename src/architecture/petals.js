@@ -207,7 +207,7 @@ function createBranchingYTruss(materials, height) {
 
 function createPetalMesh(materials, length, width, scale, seed) {
   const g = new THREE.Group();
-  const geo = createTwistedLeafGeometry({
+  const leafParams = {
     length,
     width,
     thickness: 0.16,
@@ -216,20 +216,25 @@ function createPetalMesh(materials, length, width, scale, seed) {
     tipDroop: 1.15 + (seed % 3) * 0.12,
     segsL: 52,
     segsW: 20,
-  });
+  };
+  const geo = createTwistedLeafGeometry(leafParams);
 
   const body = new THREE.Mesh(geo, materials.petalBody.clone());
-  body.material.emissiveIntensity = 0.16 + (seed % 4) * 0.02;
+  body.material.emissiveIntensity = 0.22 + (seed % 4) * 0.03;
   body.castShadow = true;
   body.receiveShadow = true;
   g.add(body);
 
-  // Leading-edge gold busbar strip
+  // Champagne-gold aluminum perimeter frame
+  const rim = createChampagneRim(leafParams, materials.champagneGold || materials.goldBusbar);
+  if (rim) g.add(rim);
+
+  // Center gold busbar highlight
   const edge = new THREE.Mesh(
-    new THREE.BoxGeometry(0.03, 0.02, length * 0.9),
+    new THREE.BoxGeometry(0.035, 0.025, length * 0.88),
     materials.goldBusbar
   );
-  edge.position.set(0, 0.08, length * 0.45);
+  edge.position.set(0, 0.09, length * 0.45);
   g.add(edge);
 
   // Underside carbon midrib
@@ -254,6 +259,50 @@ function createPetalMesh(materials, length, width, scale, seed) {
 
   g.scale.setScalar(scale);
   return g;
+}
+
+/** Tube rim following twisted-leaf silhouette */
+function createChampagneRim(params, material) {
+  const {
+    length, width, camber, twist, tipDroop, thickness = 0.16,
+  } = params;
+  const pts = [];
+  const samples = 48;
+
+  const sampleEdge = (v, side) => {
+    const widthProfile =
+      Math.pow(Math.sin(Math.pow(v, 0.62) * Math.PI), 0.85) *
+      (1 - Math.pow(v, 2.4) * 0.2);
+    const halfW = (width * 0.5) * Math.max(0.05, widthProfile);
+    const droop = Math.pow(v, 1.85) * tipDroop;
+    const twistAngle = (v - 0.28) * twist;
+    const archBase = Math.sin(v * Math.PI) * camber;
+    const u = side < 0 ? 0 : 1;
+    const x0 = side < 0 ? -halfW : halfW;
+    const edge = 1 - Math.pow(Math.abs(u * 2 - 1), 1.6);
+    const y0 = thickness * edge * (0.35 + 0.65 * Math.sin(v * Math.PI));
+    const arch = archBase * (0.7 + 0.3 * edge);
+    const ySurf = y0 + arch * (1 - Math.abs(u * 2 - 1) * 0.35) - droop;
+    const cosT = Math.cos(twistAngle);
+    const sinT = Math.sin(twistAngle);
+    return new THREE.Vector3(
+      x0 * cosT - ySurf * sinT * 0.25,
+      x0 * sinT * 0.15 + ySurf + 0.02,
+      v * length
+    );
+  };
+
+  for (let i = 0; i <= samples; i += 1) pts.push(sampleEdge(i / samples, -1));
+  for (let i = samples; i >= 0; i -= 1) pts.push(sampleEdge(i / samples, 1));
+
+  if (pts.length < 4) return null;
+  const curve = new THREE.CatmullRomCurve3(pts, true);
+  const tube = new THREE.Mesh(
+    new THREE.TubeGeometry(curve, 120, 0.028, 6, true),
+    material
+  );
+  tube.castShadow = true;
+  return tube;
 }
 
 export function updatePetalTracking(petalArray, sunDirection) {

@@ -1,65 +1,12 @@
 import * as THREE from 'three';
-
-function makePetalCellTexture() {
-  const size = 256;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  const g = ctx.createLinearGradient(0, 0, size, size);
-  g.addColorStop(0, '#2a1a58');
-  g.addColorStop(0.5, '#3d2a7a');
-  g.addColorStop(1, '#1a1040');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, size, size);
-
-  // Crystalline cell grid
-  ctx.strokeStyle = 'rgba(90, 70, 160, 0.55)';
-  ctx.lineWidth = 1;
-  const cells = 10;
-  for (let i = 0; i <= cells; i += 1) {
-    const p = (i / cells) * size;
-    ctx.beginPath();
-    ctx.moveTo(p, 0);
-    ctx.lineTo(p, size);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(0, p);
-    ctx.lineTo(size, p);
-    ctx.stroke();
-  }
-  // Gold busbars
-  ctx.strokeStyle = 'rgba(196, 163, 90, 0.9)';
-  ctx.lineWidth = 2;
-  for (let i = 0; i <= 4; i += 1) {
-    const p = ((i + 0.5) / 5) * size;
-    ctx.beginPath();
-    ctx.moveTo(p, 0);
-    ctx.lineTo(p, size);
-    ctx.stroke();
-  }
-  ctx.lineWidth = 1.5;
-  for (let i = 0; i <= 6; i += 1) {
-    const p = (i / 6) * size;
-    ctx.beginPath();
-    ctx.moveTo(0, p);
-    ctx.lineTo(size, p);
-    ctx.stroke();
-  }
-
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(3, 5);
-  tex.anisotropy = 8;
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
-}
+import { createPerovskiteMaps } from './materials/perovskiteTextures.js';
 
 export function createMaterials() {
   const concrete = new THREE.MeshStandardMaterial({
     color: 0xe6e8e2,
     roughness: 0.78,
     metalness: 0.03,
+    envMapIntensity: 0.35,
     name: 'concrete',
   });
 
@@ -88,6 +35,7 @@ export function createMaterials() {
     color: 0xeef1f4,
     roughness: 0.28,
     metalness: 0.72,
+    envMapIntensity: 1.1,
     name: 'steel',
   });
 
@@ -95,21 +43,26 @@ export function createMaterials() {
     color: 0x3a3e42,
     roughness: 0.45,
     metalness: 0.7,
+    envMapIntensity: 0.7,
     name: 'carbon',
   });
 
+  // High-transmission BIPV glass — vertex colors drive lapis→amber→terracotta
   const bipvGlass = new THREE.MeshPhysicalMaterial({
     color: 0xffffff,
     vertexColors: true,
     roughness: 0.12,
-    metalness: 0.05,
-    transmission: 0.62,
-    thickness: 0.55,
+    metalness: 0.02,
+    transmission: 0.72,
+    thickness: 0.8,
     transparent: true,
-    opacity: 0.9,
-    ior: 1.48,
+    opacity: 1,
+    ior: 1.52,
     attenuationColor: new THREE.Color(0xb8884a),
-    attenuationDistance: 2.2,
+    attenuationDistance: 1.6,
+    clearcoat: 0.55,
+    clearcoatRoughness: 0.12,
+    envMapIntensity: 1.35,
     side: THREE.DoubleSide,
     name: 'bipvGlass',
   });
@@ -126,22 +79,55 @@ export function createMaterials() {
 
   const courtyard = new THREE.MeshStandardMaterial({
     color: 0xd2d5cc,
-    roughness: 0.7,
+    roughness: 0.62,
     metalness: 0.04,
+    envMapIntensity: 0.4,
     name: 'courtyard',
   });
 
-  const petalMap = makePetalCellTexture();
-  const petalBody = new THREE.MeshStandardMaterial({
-    color: 0xffffff,
-    map: petalMap,
-    roughness: 0.28,
-    metalness: 0.55,
-    emissive: 0x140c30,
-    emissiveIntensity: 0.18,
+  // —— Perovskite petal: deep violet/obsidian + iridescence + etched maps ——
+  const { map, roughnessMap, emissiveMap } = createPerovskiteMaps(1024);
+  const petalBody = new THREE.MeshPhysicalMaterial({
+    color: 0xffffff, // let map drive albedo fully
+    map,
+    roughnessMap,
+    emissiveMap,
+    emissive: new THREE.Color(0x3a2060),
+    emissiveIntensity: 0.35,
+    metalness: 0.78,
+    roughness: 0.3,
+    iridescence: 1.0,
+    iridescenceIOR: 1.8,
+    iridescenceThicknessRange: [100, 520],
+    clearcoat: 0.7,
+    clearcoatRoughness: 0.16,
+    envMapIntensity: 1.2,
     side: THREE.DoubleSide,
     name: 'petalBody',
   });
+
+  // Extra grazing film sheen layered on built-in iridescence
+  petalBody.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      'vec3 totalEmissiveRadiance = emissive;',
+      `
+      vec3 totalEmissiveRadiance = emissive;
+      `
+    );
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <opaque_fragment>',
+      `
+      {
+        vec3 viewDir = normalize(vViewPosition);
+        float graze = pow(1.0 - saturate(dot(normal, viewDir)), 2.6);
+        outgoingLight += vec3(0.14, 0.08, 0.26) * graze * 0.5;
+        outgoingLight += vec3(0.2, 0.14, 0.05) * graze * graze * 0.3;
+      }
+      #include <opaque_fragment>
+      `
+    );
+  };
+  petalBody.customProgramCacheKey = () => 'perovskite-irid-v1';
 
   const petalLattice = new THREE.MeshStandardMaterial({
     color: 0x4a3a88,
@@ -150,11 +136,25 @@ export function createMaterials() {
     name: 'petalLattice',
   });
 
-  const goldBusbar = new THREE.MeshStandardMaterial({
-    color: 0xc4a35a,
-    roughness: 0.2,
+  // Champagne-gold aluminum rim
+  const goldBusbar = new THREE.MeshPhysicalMaterial({
+    color: 0xd4b87a,
+    roughness: 0.22,
     metalness: 1.0,
+    clearcoat: 0.4,
+    clearcoatRoughness: 0.2,
+    envMapIntensity: 1.5,
     name: 'goldBusbar',
+  });
+
+  const champagneGold = new THREE.MeshPhysicalMaterial({
+    color: 0xe2c792,
+    roughness: 0.28,
+    metalness: 0.95,
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.15,
+    envMapIntensity: 1.6,
+    name: 'champagneGold',
   });
 
   const ground = new THREE.MeshStandardMaterial({
@@ -176,24 +176,27 @@ export function createMaterials() {
     color: 0xeceff2,
     roughness: 0.35,
     metalness: 0.45,
+    envMapIntensity: 1.0,
     name: 'vehicle',
   });
 
-  const glassDark = new THREE.MeshStandardMaterial({
+  const glassDark = new THREE.MeshPhysicalMaterial({
     color: 0x1a2430,
-    roughness: 0.15,
-    metalness: 0.6,
+    roughness: 0.12,
+    metalness: 0.55,
+    transmission: 0.15,
     transparent: true,
-    opacity: 0.85,
+    opacity: 0.88,
+    envMapIntensity: 1.2,
     name: 'glassDark',
   });
 
   const cyanGlow = new THREE.MeshStandardMaterial({
     color: 0x3ef0e8,
     emissive: 0x2ad8d0,
-    emissiveIntensity: 1.6,
-    roughness: 0.3,
-    metalness: 0.2,
+    emissiveIntensity: 1.85,
+    roughness: 0.25,
+    metalness: 0.15,
     name: 'cyanGlow',
   });
 
@@ -234,6 +237,7 @@ export function createMaterials() {
     petalBody,
     petalLattice,
     goldBusbar,
+    champagneGold,
     ground,
     road,
     vehicle,
@@ -259,9 +263,11 @@ export function setWireframeMode(root, materials, enabled) {
         mat.userData.prevOpacity = mat.opacity;
         mat.userData.prevTransparent = mat.transparent;
         mat.userData.prevMap = mat.map;
+        mat.userData.prevTransmission = mat.transmission;
       }
       if (mat.map) mat.map = null;
       if (mat.color) mat.color.set(0xf2f4f0);
+      if ('transmission' in mat) mat.transmission = 0;
       if ('opacity' in mat) {
         mat.transparent = true;
         mat.opacity = shared.has(mat) ? 0.55 : 0.7;
@@ -271,6 +277,9 @@ export function setWireframeMode(root, materials, enabled) {
       mat.opacity = mat.userData.prevOpacity ?? 1;
       mat.transparent = mat.userData.prevTransparent ?? false;
       if (mat.userData.prevMap !== undefined) mat.map = mat.userData.prevMap;
+      if (mat.userData.prevTransmission !== undefined) {
+        mat.transmission = mat.userData.prevTransmission;
+      }
     }
   };
 
