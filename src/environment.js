@@ -1,11 +1,26 @@
 import * as THREE from 'three';
 import { fbm } from './geometry/helpers.js';
+import {
+  createPlateauTextures,
+  createGravelTexture,
+} from './materials/terrainTextures.js';
 
 export function createEnvironment(scene, materials) {
   const group = new THREE.Group();
   group.name = 'Environment';
 
-  // Plateau terrain with procedural height + vertex colors
+  const plateauTex = createPlateauTextures(1024);
+  materials.ground.map = plateauTex.map;
+  materials.ground.bumpMap = plateauTex.bumpMap;
+  materials.ground.bumpScale = 0.35;
+  materials.ground.roughness = 0.9;
+  materials.ground.needsUpdate = true;
+
+  const gravelTex = createGravelTexture(512);
+  materials.gravel.map = gravelTex;
+  materials.gravel.needsUpdate = true;
+
+  // Plateau terrain with procedural height + vertex colors + CanvasTexture
   const size = 220;
   const seg = 128;
   const groundGeo = new THREE.PlaneGeometry(size, size, seg, seg);
@@ -42,6 +57,25 @@ export function createEnvironment(scene, materials) {
   ground.receiveShadow = true;
   ground.position.y = -0.05;
   group.add(ground);
+
+  // Dark gravel apron around building base — kills floating look
+  const apron = new THREE.Mesh(
+    new THREE.RingGeometry(22, 34, 72),
+    materials.gravel
+  );
+  apron.rotation.x = -Math.PI / 2;
+  apron.position.y = 0.02;
+  apron.receiveShadow = true;
+  group.add(apron);
+
+  const apronInner = new THREE.Mesh(
+    new THREE.RingGeometry(18, 22.2, 64),
+    materials.gravel
+  );
+  apronInner.rotation.x = -Math.PI / 2;
+  apronInner.position.y = 0.025;
+  apronInner.receiveShadow = true;
+  group.add(apronInner);
 
   // Mid-ground dune mounds so aerial reads as rolling plateau
   for (let i = 0; i < 14; i += 1) {

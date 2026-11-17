@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { createBase } from './base.js';
 import { createAtrium } from './atrium.js';
 import { createPetalArray } from './petals.js';
+import { createScaleRefs } from './scale.js';
 
 /**
  * Assemble station into five exhibition explode layers:
@@ -51,6 +52,12 @@ export function createBuilding(materials) {
   berm.castShadow = true;
   berm.receiveShadow = true;
   layerFoundation.add(berm);
+
+  // Scale figures + weather tower
+  const scaleRefs = createScaleRefs(materials);
+  while (scaleRefs.children.length) {
+    layerFoundation.add(scaleRefs.children[0]);
+  }
 
   // —— Program: podium + atrium floor + interiors ——
   const podium = new THREE.Mesh(
@@ -138,32 +145,82 @@ export function createBuilding(materials) {
 }
 
 function addProgramInteriors(layer, materials) {
+  // Two ring research office floors visible through translucent BIPV
+  [3.95, 5.85].forEach((y, fi) => {
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(4.2 - fi * 0.3, 10.4 - fi * 0.4, 64),
+      materials.concrete
+    );
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = y;
+    ring.receiveShadow = true;
+    ring.castShadow = true;
+    layer.add(ring);
+
+    // Warm amber under-glow for inhabited labs
+    const glowRing = new THREE.Mesh(
+      new THREE.RingGeometry(4.4 - fi * 0.3, 10.0 - fi * 0.4, 48),
+      materials.amberGlow
+    );
+    glowRing.rotation.x = -Math.PI / 2;
+    glowRing.position.y = y - 0.08;
+    layer.add(glowRing);
+
+    // Desk / lab benches on each floor
+    for (let i = 0; i < 6; i += 1) {
+      const a = (i / 6) * Math.PI * 2 + fi * 0.3;
+      const desk = new THREE.Mesh(
+        new THREE.BoxGeometry(2.2, 0.1, 0.7),
+        materials.concrete
+      );
+      desk.position.set(Math.cos(a) * 7.2, y + 0.4, Math.sin(a) * 7.2);
+      desk.rotation.y = -a;
+      desk.castShadow = true;
+      layer.add(desk);
+    }
+  });
+
   // Spiral stair around oculus
   const stair = new THREE.Group();
   stair.name = 'SpiralStair';
-  const steps = 28;
+  const steps = 36;
   for (let i = 0; i < steps; i += 1) {
     const t = i / steps;
-    const a = t * Math.PI * 3.2;
-    const r = 3.4;
+    const a = t * Math.PI * 4.2;
+    const r = 3.2;
     const step = new THREE.Mesh(
-      new THREE.BoxGeometry(1.1, 0.08, 0.45),
+      new THREE.BoxGeometry(1.15, 0.08, 0.48),
       materials.concrete
     );
-    step.position.set(Math.cos(a) * r, 3.4 + t * 4.2, Math.sin(a) * r);
+    step.position.set(Math.cos(a) * r, 3.35 + t * 5.0, Math.sin(a) * r);
     step.rotation.y = -a;
     step.castShadow = true;
     step.receiveShadow = true;
     stair.add(step);
   }
   const rail = new THREE.Mesh(
-    new THREE.TorusGeometry(3.55, 0.04, 6, 48),
+    new THREE.TorusGeometry(3.4, 0.04, 6, 48),
     materials.steel
   );
   rail.rotation.x = Math.PI / 2;
-  rail.position.y = 5.6;
+  rail.position.y = 5.8;
   stair.add(rail);
+  const rail2 = rail.clone();
+  rail2.position.y = 7.4;
+  stair.add(rail2);
   layer.add(stair);
+
+  // Central warm atrium glow volume
+  const atriumGlow = new THREE.Mesh(
+    new THREE.CylinderGeometry(2.6, 3.2, 5.5, 24, 1, true),
+    materials.amberGlow
+  );
+  atriumGlow.position.y = 5.5;
+  atriumGlow.material = materials.amberGlow.clone();
+  atriumGlow.material.transparent = true;
+  atriumGlow.material.opacity = 0.35;
+  atriumGlow.material.side = THREE.DoubleSide;
+  layer.add(atriumGlow);
 
   // Battery energy storage cabinets
   for (let i = 0; i < 4; i += 1) {
@@ -181,15 +238,6 @@ function addProgramInteriors(layer, materials) {
     stripe.position.set(-7 + i * 1.5, 4.9, -6.5);
     layer.add(stripe);
   }
-
-  // Lab desk block
-  const desk = new THREE.Mesh(
-    new THREE.BoxGeometry(4.5, 0.12, 1.4),
-    materials.concrete
-  );
-  desk.position.set(6.5, 3.55, 2);
-  desk.castShadow = true;
-  layer.add(desk);
 }
 
 /** Museum-grade vertical offsets for five exhibition layers */

@@ -237,27 +237,107 @@ function createPetalMesh(materials, length, width, scale, seed) {
   edge.position.set(0, 0.09, length * 0.45);
   g.add(edge);
 
-  // Underside carbon midrib
-  const rib = new THREE.Mesh(
-    new THREE.BoxGeometry(0.05, 0.06, length * 0.88),
-    materials.carbon
-  );
-  rib.position.set(0, -0.05, length * 0.44);
-  rib.castShadow = true;
-  g.add(rib);
-
-  // Lateral veins
-  for (let i = 0; i < 4; i += 1) {
-    const vein = new THREE.Mesh(
-      new THREE.BoxGeometry(width * 0.55, 0.02, 0.03),
-      materials.carbon
-    );
-    vein.position.set(0, -0.03, length * (0.25 + i * 0.18));
-    vein.rotation.y = (i % 2 === 0 ? 0.15 : -0.15);
-    g.add(vein);
-  }
+  // Underside Y-type carbon fiber truss (readable from worm's-eye views)
+  const underside = createPetalUndersideTruss(length, width, materials);
+  g.add(underside);
 
   g.scale.setScalar(scale);
+  return g;
+}
+
+/** Deep-grey Y carbon truss + hydraulic actuator detail on petal back */
+function createPetalUndersideTruss(length, width, materials) {
+  const g = new THREE.Group();
+  g.name = 'PetalUnderside';
+
+  const carbon = materials.carbon;
+  const steel = materials.steel;
+
+  // Central spine
+  const spine = new THREE.Mesh(
+    new THREE.BoxGeometry(0.08, 0.07, length * 0.9),
+    carbon
+  );
+  spine.position.set(0, -0.08, length * 0.45);
+  spine.castShadow = true;
+  g.add(spine);
+
+  // Y-forks along length
+  const forks = 5;
+  for (let i = 0; i < forks; i += 1) {
+    const v = 0.18 + (i / (forks - 1)) * 0.62;
+    const z = v * length;
+    const halfSpan = width * (0.22 + Math.sin(v * Math.PI) * 0.28);
+    [-1, 1].forEach((side) => {
+      const arm = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.028, 0.04, halfSpan * 1.05, 6),
+        carbon
+      );
+      arm.position.set(side * halfSpan * 0.48, -0.1, z);
+      arm.rotation.z = side * (0.95 + (1 - v) * 0.25);
+      arm.rotation.x = 0.15;
+      arm.castShadow = true;
+      g.add(arm);
+
+      const tip = new THREE.Mesh(
+        new THREE.SphereGeometry(0.045, 6, 6),
+        carbon
+      );
+      tip.position.set(side * halfSpan * 0.95, -0.09, z);
+      g.add(tip);
+    });
+
+    // Cross brace
+    const brace = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.018, 0.018, halfSpan * 1.7, 5),
+      carbon
+    );
+    brace.rotation.z = Math.PI / 2;
+    brace.position.set(0, -0.095, z);
+    g.add(brace);
+  }
+
+  // Hydraulic pivot block near root (metal tracking joint)
+  const pivotBlock = new THREE.Mesh(
+    new THREE.BoxGeometry(0.32, 0.18, 0.42),
+    steel
+  );
+  pivotBlock.position.set(0, -0.14, 0.35);
+  pivotBlock.castShadow = true;
+  g.add(pivotBlock);
+
+  const cyl = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.055, 0.065, 0.55, 10),
+    carbon
+  );
+  cyl.rotation.x = Math.PI / 2;
+  cyl.position.set(0.18, -0.2, 0.55);
+  cyl.castShadow = true;
+  g.add(cyl);
+
+  const rod = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.025, 0.025, 0.7, 8),
+    steel
+  );
+  rod.rotation.x = Math.PI / 2;
+  rod.position.set(0.18, -0.2, 0.95);
+  g.add(rod);
+
+  const clevis = new THREE.Mesh(
+    new THREE.TorusGeometry(0.07, 0.018, 6, 12),
+    steel
+  );
+  clevis.position.set(0.18, -0.2, 1.25);
+  g.add(clevis);
+
+  // Side hydraulic twin
+  const cyl2 = cyl.clone();
+  cyl2.position.x = -0.18;
+  g.add(cyl2);
+  const rod2 = rod.clone();
+  rod2.position.x = -0.18;
+  g.add(rod2);
+
   return g;
 }
 

@@ -4,62 +4,72 @@ export const EXPLODE_LABELS = [
   {
     key: 'petals',
     code: '01',
-    title: '仿生追光钙钛矿叶片阵列',
-    en: 'Sunflower Tracking Petals ×24',
+    title: '24片向日葵仿生钙钛矿追光花瓣阵列',
+    en: 'Sunflower Perovskite Tracking Petals ×24',
   },
   {
     key: 'glass',
     code: '02',
-    title: '彩色半透明 BIPV 发电幕墙',
-    en: 'Chromatic Perovskite BIPV Shell',
+    title: '彩色半透明钙钛矿 BIPV 发电玻璃幕墙',
+    en: 'Chromatic Translucent Perovskite BIPV',
   },
   {
     key: 'steel',
     code: '03',
-    title: '双曲面空间网格钢骨架',
-    en: 'Diagrid Skeleton & Ring Beams',
+    title: '参数化空间三角网格钢结构网壳 (Diagrid)',
+    en: 'Parametric Spatial Diagrid Shell',
   },
   {
     key: 'program',
     code: '04',
-    title: '科研办公 · 储能 · V2G 子系统',
-    en: 'Lab Floors · BESS · V2G Hub',
+    title: '零碳科研中庭、储能微网与 V2G 双向充放电系统',
+    en: 'Zero-Carbon Atrium · BESS · V2G Hub',
   },
   {
     key: 'foundation',
     code: '05',
-    title: '高原覆土保温退台基座',
-    en: 'Earth-Sheltered Concrete Base',
+    title: '高原覆土超低能耗保温混凝土退台基座',
+    en: 'Plateau Earth-Sheltered Concrete Base',
   },
 ];
 
 function makeLabelSprite(meta, boardWhite = false) {
   const canvas = document.createElement('canvas');
-  canvas.width = 1024;
-  canvas.height = 256;
+  canvas.width = 1408;
+  canvas.height = 280;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   // Panel
-  ctx.fillStyle = boardWhite ? 'rgba(255,255,255,0.94)' : 'rgba(14,22,18,0.82)';
-  roundRect(ctx, 24, 28, 960, 200, 18);
+  ctx.fillStyle = boardWhite ? 'rgba(255,255,255,0.96)' : 'rgba(14,22,18,0.86)';
+  roundRect(ctx, 24, 24, 1360, 232, 14);
   ctx.fill();
 
   // Accent bar
   ctx.fillStyle = boardWhite ? '#2f6f5e' : '#c4a35a';
-  ctx.fillRect(24, 28, 10, 200);
+  ctx.fillRect(24, 24, 10, 232);
 
   ctx.fillStyle = boardWhite ? 'rgba(26,34,28,0.55)' : 'rgba(242,239,230,0.65)';
-  ctx.font = '600 36px Syne, sans-serif';
-  ctx.fillText(meta.code, 60, 88);
+  ctx.font = '600 40px Syne, "Noto Sans SC", sans-serif';
+  ctx.fillText(meta.code, 56, 90);
 
   ctx.fillStyle = boardWhite ? '#132018' : '#f2efe6';
-  ctx.font = '600 44px "IBM Plex Sans", sans-serif';
-  ctx.fillText(meta.title, 60, 148);
-
-  ctx.fillStyle = boardWhite ? 'rgba(19,32,24,0.5)' : 'rgba(242,239,230,0.5)';
-  ctx.font = '500 28px "IBM Plex Sans", sans-serif';
-  ctx.fillText(meta.en.toUpperCase(), 60, 196);
+  ctx.font = '600 42px "IBM Plex Sans", "Noto Sans SC", sans-serif';
+  // Wrap long Chinese titles
+  const title = meta.title;
+  if (title.length > 22) {
+    ctx.font = '600 34px "IBM Plex Sans", "Noto Sans SC", sans-serif';
+    ctx.fillText(title.slice(0, 18), 56, 148);
+    ctx.fillText(title.slice(18), 56, 190);
+    ctx.fillStyle = boardWhite ? 'rgba(19,32,24,0.5)' : 'rgba(242,239,230,0.5)';
+    ctx.font = '500 24px "IBM Plex Sans", sans-serif';
+    ctx.fillText(meta.en.toUpperCase(), 56, 232);
+  } else {
+    ctx.fillText(title, 56, 155);
+    ctx.fillStyle = boardWhite ? 'rgba(19,32,24,0.5)' : 'rgba(242,239,230,0.5)';
+    ctx.font = '500 26px "IBM Plex Sans", sans-serif';
+    ctx.fillText(meta.en.toUpperCase(), 56, 210);
+  }
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -72,7 +82,7 @@ function makeLabelSprite(meta, boardWhite = false) {
     depthWrite: false,
   });
   const sprite = new THREE.Sprite(mat);
-  sprite.scale.set(14, 3.5, 1);
+  sprite.scale.set(16, 3.2, 1);
   sprite.center.set(0, 0.5);
   sprite.renderOrder = 10;
   sprite.userData.labelMeta = meta;
@@ -90,7 +100,7 @@ function roundRect(ctx, x, y, w, h, r) {
 }
 
 /**
- * Museum-board callout rails + sprite labels (render into 4K PNG).
+ * Museum-board callouts: horizontal leader lines + dot anchors + sprites.
  */
 export function createCalloutSystem(scene) {
   const root = new THREE.Group();
@@ -98,50 +108,56 @@ export function createCalloutSystem(scene) {
   root.visible = false;
   scene.add(root);
 
-  const dashMat = new THREE.LineDashedMaterial({
-    color: 0x6a736c,
-    dashSize: 0.55,
-    gapSize: 0.35,
+  const lineMat = new THREE.LineBasicMaterial({
+    color: 0x8a938c,
     transparent: true,
-    opacity: 0.75,
+    opacity: 0.85,
     depthTest: false,
   });
 
   const items = EXPLODE_LABELS.map((meta, i) => {
-    const side = i % 2 === 0 ? 1 : -1;
-    const x = side * (24 + (i % 3) * 1.2);
-    const z = -8 + i * 3.2;
+    // All labels on the right with fine horizontal leaders
+    const x = 26 + (i % 2) * 1.5;
+    const z = -10 + i * 4.2;
 
     const anchor = new THREE.Group();
     anchor.position.set(x, 0, z);
     root.add(anchor);
 
-    const geo = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(0, -5, 0),
-      new THREE.Vector3(0, 5, 0),
-    ]);
-    const line = new THREE.Line(geo, dashMat.clone());
-    line.computeLineDistances();
-    line.frustumCulled = false;
-    anchor.add(line);
+    // Dot at building-side anchor
+    const dot = new THREE.Mesh(
+      new THREE.SphereGeometry(0.22, 12, 10),
+      new THREE.MeshBasicMaterial({ color: 0xc4a35a, depthTest: false })
+    );
+    dot.position.set(-14, 0, 0);
+    dot.renderOrder = 11;
+    anchor.add(dot);
 
-    const tickGeo = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(0, 0, 0),
-      new THREE.Vector3(-side * 7, 0, 0),
+    // Fine horizontal leader: building → label
+    const leaderGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-14, 0, 0),
+      new THREE.Vector3(-1.2, 0, 0),
     ]);
-    const tick = new THREE.Line(tickGeo, dashMat.clone());
-    tick.computeLineDistances();
+    const leader = new THREE.Line(leaderGeo, lineMat.clone());
+    leader.frustumCulled = false;
+    leader.renderOrder = 10;
+    anchor.add(leader);
+
+    // Small elbow tick
+    const tickGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-1.2, -0.35, 0),
+      new THREE.Vector3(-1.2, 0.35, 0),
+    ]);
+    const tick = new THREE.Line(tickGeo, lineMat.clone());
     tick.frustumCulled = false;
     anchor.add(tick);
 
     const sprite = makeLabelSprite(meta, false);
-    sprite.position.set(side * 0.8, 0.2, 0);
-    if (side < 0) {
-      sprite.center.set(1, 0.5);
-    }
+    sprite.position.set(0.4, 0, 0);
+    sprite.center.set(0, 0.5);
     anchor.add(sprite);
 
-    return { meta, anchor, line, sprite, side, key: meta.key };
+    return { meta, anchor, leader, tick, dot, sprite, key: meta.key };
   });
 
   function setVisible(v) {
@@ -158,8 +174,11 @@ export function createCalloutSystem(scene) {
   function setBoardStyle(boardWhite) {
     root.traverse((obj) => {
       if (obj.isLine && obj.material) {
-        obj.material.color.set(boardWhite ? 0x2a322e : 0x6a736c);
-        obj.material.opacity = boardWhite ? 0.92 : 0.7;
+        obj.material.color.set(boardWhite ? 0x1a221e : 0x8a938c);
+        obj.material.opacity = boardWhite ? 0.95 : 0.85;
+      }
+      if (obj.isMesh && obj.geometry?.type === 'SphereGeometry' && obj.material?.isMeshBasicMaterial) {
+        obj.material.color.set(boardWhite ? 0x2f6f5e : 0xc4a35a);
       }
     });
     items.forEach((item) => {
@@ -174,10 +193,7 @@ export function createCalloutSystem(scene) {
     });
   }
 
-  function render() {
-    // Sprites render with the WebGL scene — no extra pass
-  }
-
+  function render() {}
   function setSize() {}
 
   return {

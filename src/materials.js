@@ -47,7 +47,7 @@ export function createMaterials() {
     name: 'carbon',
   });
 
-  // High-transmission BIPV glass — vertex colors drive lapis→amber→terracotta
+  // High-transmission BIPV glass — more see-through so interiors read from outside
   const bipvGlass = new THREE.MeshPhysicalMaterial({
     color: 0xffffff,
     vertexColors: true,
@@ -56,15 +56,84 @@ export function createMaterials() {
     transmission: 0.72,
     thickness: 0.8,
     transparent: true,
-    opacity: 1,
+    opacity: 0.5,
     ior: 1.52,
     attenuationColor: new THREE.Color(0xb8884a),
-    attenuationDistance: 1.6,
+    attenuationDistance: 1.8,
     clearcoat: 0.55,
     clearcoatRoughness: 0.12,
     envMapIntensity: 1.35,
     side: THREE.DoubleSide,
     name: 'bipvGlass',
+  });
+
+  const lowEGlass = new THREE.MeshPhysicalMaterial({
+    color: 0x2a3340,
+    roughness: 0.08,
+    metalness: 0.35,
+    transmission: 0.35,
+    thickness: 0.25,
+    transparent: true,
+    opacity: 0.72,
+    ior: 1.45,
+    envMapIntensity: 1.2,
+    side: THREE.DoubleSide,
+    name: 'lowEGlass',
+  });
+
+  const mullion = new THREE.MeshStandardMaterial({
+    color: 0x1a1c1e,
+    roughness: 0.4,
+    metalness: 0.85,
+    name: 'mullion',
+  });
+
+  const amberGlow = new THREE.MeshStandardMaterial({
+    color: 0xffaa44,
+    emissive: 0xffaa44,
+    emissiveIntensity: 1.35,
+    roughness: 0.6,
+    metalness: 0.05,
+    name: 'amberGlow',
+  });
+
+  const glassRail = new THREE.MeshPhysicalMaterial({
+    color: 0xd8e4ec,
+    roughness: 0.05,
+    metalness: 0.05,
+    transmission: 0.9,
+    thickness: 0.05,
+    transparent: true,
+    opacity: 0.35,
+    ior: 1.5,
+    side: THREE.DoubleSide,
+    name: 'glassRail',
+  });
+
+  const stonePavers = new THREE.MeshStandardMaterial({
+    color: 0x5a5e62,
+    roughness: 0.88,
+    metalness: 0.05,
+    name: 'stonePavers',
+  });
+
+  const gravel = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    roughness: 0.95,
+    metalness: 0.02,
+    name: 'gravel',
+  });
+
+  const canopyPV = new THREE.MeshPhysicalMaterial({
+    color: 0x1a2740,
+    roughness: 0.2,
+    metalness: 0.55,
+    transmission: 0.25,
+    transparent: true,
+    opacity: 0.65,
+    envMapIntensity: 1.1,
+    side: THREE.DoubleSide,
+    name: 'canopyPV',
   });
 
   const bipvAmber = bipvGlass;
@@ -160,8 +229,9 @@ export function createMaterials() {
   const ground = new THREE.MeshStandardMaterial({
     color: 0xffffff,
     vertexColors: true,
-    roughness: 0.98,
+    roughness: 0.9,
     metalness: 0.0,
+    bumpScale: 0.35,
     name: 'ground',
   });
 
@@ -232,6 +302,13 @@ export function createMaterials() {
     bipvGlass,
     bipvAmber,
     bipvLapis,
+    lowEGlass,
+    mullion,
+    amberGlow,
+    glassRail,
+    stonePavers,
+    gravel,
+    canopyPV,
     ramp,
     courtyard,
     petalBody,
