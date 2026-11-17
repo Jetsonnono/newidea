@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Helio-Matrix 3D · 向日葵矩阵·高原钙钛矿零碳驿站</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="scene-canvas"></canvas>
+
+      <header class="brand-bar" id="brand-bar">
+        <div class="brand-mark">
+          <span class="brand-orb" aria-hidden="true"></span>
+          <div>
+            <p class="brand-name">Helio-Matrix 3D</p>
+            <p class="brand-sub">向日葵矩阵 · 高原钙钛矿零碳驿站</p>
+          </div>
+        </div>
+        <p class="brand-meta">Parametric Zero-Carbon Station · Plateau 32°N</p>
+      </header>
+
+      <aside class="control-panel" id="control-panel" aria-label="场景控制">
+        <div class="panel-head">
+          <h2>控制台</h2>
+          <button type="button" class="icon-btn" id="btn-hide-panel" title="隐藏面板便于截图">
+            隐藏
+          </button>
+        </div>
+
+        <section class="panel-block">
+          <div class="block-label-row">
+            <label for="time-slider">日照时间</label>
+            <span id="time-display">12:00</span>
+          </div>
+          <input
+            id="time-slider"
+            type="range"
+            min="360"
+            max="1200"
+            value="720"
+            step="1"
+            aria-valuetext="12:00"
+          />
+          <div class="range-ends"><span>06:00</span><span>20:00</span></div>
+        </section>
+
+        <section class="panel-block power-block">
+          <div class="block-label-row">
+            <span>追光发电功率</span>
+            <strong id="power-value">0.0 kW</strong>
+          </div>
+          <div class="power-bar" aria-hidden="true">
+            <div class="power-fill" id="power-fill"></div>
+          </div>
+          <p class="power-note" id="petal-angle">花瓣法线对齐中 · 辐照就绪</p>
+        </section>
+
+        <section class="panel-block">
+          <p class="block-title">展板分析模式</p>
+          <div class="preset-grid" id="view-presets">
+            <button type="button" data-view="aerial" class="active">鸟瞰全景</button>
+            <button type="button" data-view="human">人视仰拍</button>
+            <button type="button" data-view="atrium">中庭室内光影</button>
+            <button type="button" data-view="explode">结构爆炸图</button>
+            <button type="button" data-view="heatmap">辐射热力分析</button>
+            <button type="button" data-view="wireframe">白模线框</button>
+          </div>
+        </section>
+
+        <section class="panel-block" id="board-options">
+          <p class="block-title">展板导出选项</p>
+          <label class="check-row">
+            <input type="checkbox" id="chk-board-white" />
+            <span>展板纯白背景开关</span>
+          </label>
+          <div class="export-row">
+            <button type="button" id="btn-export-white" class="primary">4K 纯白背景</button>
+            <button type="button" id="btn-export-transparent">4K 透明背景</button>
+            <button type="button" id="btn-export-board">4K 展板底图</button>
+          </div>
+        </section>
+      </aside>
+
+      <button type="button" class="show-panel-btn" id="btn-show-panel" hidden>
+        显示控制台
+      </button>
+
+      <aside class="heatmap-legend" id="heatmap-legend" hidden>
+        <p class="legend-title">太阳辐射照度</p>
+        <div class="legend-scale" aria-hidden="true"></div>
+        <div class="legend-ends"><span>0</span><span>1200 W/m²</span></div>
+        <p class="legend-metric">
+          平均追光捕获效率
+          <strong id="heatmap-efficiency">96.0%</strong>
+        </p>
+        <p class="legend-metric">
+          瞬时面均辐照
+          <strong id="heatmap-flux">0 W/m²</strong>
+        </p>
+      </aside>
+
+      <footer class="hud-footer" id="hud-footer">
+        <span>24× 钙钛矿仿生追光花瓣</span>
+        <span class="dot"></span>
+        <span>双曲面网壳 BIPV</span>
+        <span class="dot"></span>
+        <span>V2G 下沉庭院</span>
+      </footer>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
