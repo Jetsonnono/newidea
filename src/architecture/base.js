@@ -9,33 +9,27 @@ export function createBase(materials) {
   const group = new THREE.Group();
   group.name = 'Base';
 
+  // Each tier = lower concrete belt + recessed Low-E band + upper parapet
+  // (not a solid foam slab — glass must sit on the exterior face)
   const tiers = [
-    { y: 0.0, sx: 52, sz: 42, h: 1.35, lobe: 0.2, earth: true },
-    { y: 1.35, sx: 40, sz: 32, h: 1.2, lobe: 0.17, earth: true },
-    { y: 2.55, sx: 28, sz: 23, h: 1.1, lobe: 0.14, earth: true },
+    { y: 0.0, sx: 52, sz: 42, h: 1.55, lobe: 0.2, earth: true },
+    { y: 1.55, sx: 40, sz: 32, h: 1.35, lobe: 0.17, earth: true },
+    { y: 2.9, sx: 28, sz: 23, h: 1.2, lobe: 0.14, earth: true },
   ];
 
   tiers.forEach((tier, index) => {
-    const slab = extrudeOrganicSlab(tier.sx, tier.sz, tier.h, tier.lobe, materials.concrete, 0.48);
-    slab.position.y = tier.y;
-    slab.name = `Tier${index + 1}`;
-    slab.userData.layer = 'base';
-    slab.userData.restY = slab.position.y;
-    group.add(slab);
-
-    // Recessed Low-E ribbon + mullions + warm amber interior glow
-    addFacadeBand(group, materials, tier, index);
+    addRecessedTier(group, materials, tier, index);
 
     if (tier.earth) {
       const plant = extrudeOrganicSlab(
-        tier.sx * 0.88,
-        tier.sz * 0.86,
-        0.18,
+        tier.sx * 0.86,
+        tier.sz * 0.84,
+        0.16,
         tier.lobe * 0.9,
         materials.planting,
-        0.08
+        0.06
       );
-      plant.position.y = tier.y + tier.h * 0.55 + 0.05;
+      plant.position.y = tier.y + tier.h - 0.02;
       plant.userData.layer = 'earth';
       plant.userData.restY = plant.position.y;
       plant.castShadow = true;
@@ -44,19 +38,12 @@ export function createBase(materials) {
       addTerraceShrubs(group, materials, tier, index);
     }
 
-    // Glass railing + metal handrail on terrace edge
-    if (index >= 0) {
-      const railY = tier.y + tier.h * 0.55 + 0.08;
-      const glassR = createGlassRailing(
-        tier.sx * 0.49,
-        tier.sz * 0.49,
-        materials
-      );
-      glassR.position.y = railY;
-      glassR.userData.layer = 'base';
-      glassR.userData.restY = railY;
-      group.add(glassR);
-    }
+    const railY = tier.y + tier.h + 0.02;
+    const glassR = createGlassRailing(tier.sx * 0.48, tier.sz * 0.48, materials);
+    glassR.position.y = railY;
+    glassR.userData.layer = 'base';
+    glassR.userData.restY = railY;
+    group.add(glassR);
   });
 
   // —— Sunken courtyard (south) ——
@@ -83,56 +70,142 @@ export function createBase(materials) {
   return group;
 }
 
-function addFacadeBand(group, materials, tier, index) {
-  const bandH = tier.h * 0.42;
-  const y = tier.y + tier.h * 0.28;
-  const inset = 0.35;
-  const sx = tier.sx - inset * 2;
-  const sz = tier.sz - inset * 2;
+/**
+ * Stacked belt facade: lower + upper concrete, middle = organic RING of
+ * dark Low-E (outer path with hole) so the band cannot be occluded.
+ */
+function addRecessedTier(group, materials, tier, index) {
+  const hBot = tier.h * 0.26;
+  const hBand = tier.h * 0.52;
+  const hTop = tier.h * 0.22;
+  const wallT = 0.85; // glass wall thickness (radial)
 
-  // Inner amber glow volume (reads as inhabited space)
-  const glow = extrudeOrganicSlab(sx * 0.96, sz * 0.96, bandH * 0.85, tier.lobe, materials.amberGlow, 0.05);
-  glow.position.y = y;
-  glow.userData.layer = 'base';
-  glow.userData.restY = y;
-  group.add(glow);
+  const bot = extrudeOrganicSlab(tier.sx, tier.sz, hBot, tier.lobe, materials.concrete, 0.04);
+  bot.position.y = tier.y;
+  bot.name = `Tier${index + 1}_Bot`;
+  bot.userData.layer = 'base';
+  bot.userData.restY = bot.position.y;
+  group.add(bot);
 
-  // Dark Low-E glass ribbon slightly outside glow
-  const glass = extrudeOrganicSlab(sx, sz, bandH, tier.lobe, materials.lowEGlass, 0.04);
-  glass.position.y = y;
-  glass.userData.layer = 'base';
-  glass.userData.restY = y;
-  glass.castShadow = false;
-  glass.receiveShadow = true;
-  group.add(glass);
+  const top = extrudeOrganicSlab(tier.sx, tier.sz, hTop, tier.lobe, materials.concrete, 0.04);
+  top.position.y = tier.y + hBot + hBand;
+  top.name = `Tier${index + 1}_Top`;
+  top.userData.layer = 'base';
+  top.userData.restY = top.position.y;
+  group.add(top);
 
-  // Vertical mullions around perimeter
-  const mullionCount = 18 + index * 4;
+  const bandY = tier.y + hBot;
+
+  // Dark Low-E curtain wall as hollow organic ring extrusion
+  const glassRing = createOrganicRingSlab(
+    tier.sx - 0.05,
+    tier.sz - 0.05,
+    wallT,
+    hBand * 0.92,
+    tier.lobe,
+    materials.lowEGlassLit || materials.lowEGlass
+  );
+  glassRing.position.y = bandY + hBand * 0.04;
+  glassRing.name = `Tier${index + 1}_Glass`;
+  glassRing.userData.layer = 'base';
+  glassRing.userData.restY = glassRing.position.y;
+  glassRing.castShadow = false;
+  glassRing.receiveShadow = true;
+  group.add(glassRing);
+
+  // Amber glow ring just inside the glass
+  const glowRing = createOrganicRingSlab(
+    tier.sx - wallT * 0.9,
+    tier.sz - wallT * 0.9,
+    wallT * 0.55,
+    hBand * 0.7,
+    tier.lobe,
+    materials.amberGlow
+  );
+  glowRing.position.y = bandY + hBand * 0.15;
+  glowRing.userData.layer = 'base';
+  glowRing.userData.restY = glowRing.position.y;
+  group.add(glowRing);
+
+  // Inner concrete core
+  const core = extrudeOrganicSlab(
+    tier.sx - wallT * 2.4,
+    tier.sz - wallT * 2.4,
+    hBand,
+    tier.lobe,
+    materials.concrete,
+    0.02
+  );
+  core.position.y = bandY;
+  core.userData.layer = 'base';
+  core.userData.restY = core.position.y;
+  group.add(core);
+
+  // Mullions around perimeter
+  const mullionCount = 28 + index * 8;
   for (let i = 0; i < mullionCount; i += 1) {
     const t = (i / mullionCount) * Math.PI * 2;
-    const rShape = 1 + tier.lobe * Math.cos(t) + tier.lobe * 0.4 * Math.cos(2 * t);
-    const x = Math.cos(t) * (sx * 0.5) * rShape * 0.98;
-    const z = Math.sin(t) * (sz * 0.5) * (rShape * 0.92) * 0.98;
-    const m = new THREE.Mesh(
-      new THREE.BoxGeometry(0.08, bandH * 0.95, 0.12),
+    const rShape =
+      1 + tier.lobe * Math.cos(t) + tier.lobe * 0.4 * Math.cos(2 * t);
+    const rx = (tier.sx * 0.5 - 0.08) * rShape;
+    const rz = (tier.sz * 0.5 - 0.08) * (rShape * 0.92);
+    const mull = new THREE.Mesh(
+      new THREE.BoxGeometry(0.16, hBand * 0.88, 0.28),
       materials.mullion
     );
-    m.position.set(x, y + bandH * 0.05, z);
-    m.lookAt(0, m.position.y, 0);
-    m.castShadow = true;
-    m.userData.layer = 'base';
-    m.userData.restY = m.position.y;
-    group.add(m);
+    mull.position.set(Math.cos(t) * rx, bandY + hBand * 0.5, Math.sin(t) * rz);
+    mull.lookAt(0, mull.position.y, 0);
+    mull.castShadow = true;
+    mull.userData.layer = 'base';
+    mull.userData.restY = mull.position.y;
+    group.add(mull);
   }
 
-  // Slim lintel / sill bands
-  [y - 0.02, y + bandH * 0.9].forEach((ly, li) => {
-    const sill = extrudeOrganicSlab(sx + 0.15, sz + 0.15, 0.07, tier.lobe, materials.mullion, 0.02);
-    sill.position.y = ly;
-    sill.userData.layer = 'base';
-    sill.userData.restY = ly;
-    group.add(sill);
+  // Dark sill / lintel
+  const sill = extrudeOrganicSlab(tier.sx + 0.05, tier.sz + 0.05, 0.09, tier.lobe, materials.mullion, 0.02);
+  sill.position.y = bandY;
+  sill.userData.layer = 'base';
+  sill.userData.restY = sill.position.y;
+  group.add(sill);
+
+  const lintel = extrudeOrganicSlab(tier.sx + 0.05, tier.sz + 0.05, 0.09, tier.lobe, materials.mullion, 0.02);
+  lintel.position.y = bandY + hBand - 0.08;
+  lintel.userData.layer = 'base';
+  lintel.userData.restY = lintel.position.y;
+  group.add(lintel);
+}
+
+/** Extruded organic ring (outer shape with inner hole) for facade belts */
+function createOrganicRingSlab(scaleX, scaleZ, thickness, height, lobe, material) {
+  const outer = createOrganicShape(scaleX, scaleZ, lobe, 96);
+  const inner = createOrganicShape(
+    Math.max(2, scaleX - thickness * 2),
+    Math.max(2, scaleZ - thickness * 2),
+    lobe,
+    96
+  );
+  // Hole winding must be opposite of outer
+  const hole = new THREE.Path();
+  const pts = inner.getPoints(96);
+  for (let i = pts.length - 1; i >= 0; i -= 1) {
+    const p = pts[i];
+    if (i === pts.length - 1) hole.moveTo(p.x, p.y);
+    else hole.lineTo(p.x, p.y);
+  }
+  outer.holes.push(hole);
+
+  const geo = new THREE.ExtrudeGeometry(outer, {
+    depth: height,
+    bevelEnabled: false,
+    curveSegments: 96,
   });
+  geo.rotateX(-Math.PI / 2);
+  geo.translate(0, height / 2, 0);
+  geo.computeVertexNormals();
+  const mesh = new THREE.Mesh(geo, material);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  return mesh;
 }
 
 function createGlassRailing(rx, rz, materials) {
@@ -192,7 +265,7 @@ function addTerraceShrubs(group, materials, tier, seed) {
       new THREE.SphereGeometry(0.35 + (i % 3) * 0.12, 8, 6),
       materials.shrub
     );
-    bush.position.set(x, tier.y + tier.h * 0.55 + 0.35, z);
+    bush.position.set(x, tier.y + tier.h + 0.28, z);
     bush.scale.set(1.1, 0.65, 1);
     bush.castShadow = true;
     bush.userData.layer = 'earth';

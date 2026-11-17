@@ -47,38 +47,42 @@ export function createMaterials() {
     name: 'carbon',
   });
 
-  // High-transmission BIPV glass — more see-through so interiors read from outside
+  // See-through BIPV — exteriors can read ring floors / stair / amber glow
   const bipvGlass = new THREE.MeshPhysicalMaterial({
     color: 0xffffff,
     vertexColors: true,
-    roughness: 0.12,
+    roughness: 0.14,
     metalness: 0.02,
-    transmission: 0.72,
-    thickness: 0.8,
+    transmission: 0.78,
+    thickness: 0.55,
     transparent: true,
-    opacity: 0.5,
+    opacity: 0.48,
     ior: 1.52,
     attenuationColor: new THREE.Color(0xb8884a),
-    attenuationDistance: 1.8,
-    clearcoat: 0.55,
-    clearcoatRoughness: 0.12,
-    envMapIntensity: 1.35,
+    attenuationDistance: 2.2,
+    clearcoat: 0.45,
+    clearcoatRoughness: 0.14,
+    envMapIntensity: 1.2,
     side: THREE.DoubleSide,
     name: 'bipvGlass',
   });
 
-  const lowEGlass = new THREE.MeshPhysicalMaterial({
-    color: 0x2a3340,
-    roughness: 0.08,
-    metalness: 0.35,
-    transmission: 0.35,
-    thickness: 0.25,
-    transparent: true,
-    opacity: 0.72,
-    ior: 1.45,
-    envMapIntensity: 1.2,
+  // Facade Low-E — BasicMaterial so PMREM/bloom can't bleach the ribbon white
+  const lowEGlass = new THREE.MeshBasicMaterial({
+    color: 0x121820,
     side: THREE.DoubleSide,
     name: 'lowEGlass',
+  });
+
+  const lowEGlassLit = new THREE.MeshStandardMaterial({
+    color: 0x101820,
+    roughness: 0.4,
+    metalness: 0.35,
+    envMapIntensity: 0.35,
+    emissive: 0xffaa44,
+    emissiveIntensity: 0.55,
+    side: THREE.DoubleSide,
+    name: 'lowEGlassLit',
   });
 
   const mullion = new THREE.MeshStandardMaterial({
@@ -303,6 +307,7 @@ export function createMaterials() {
     bipvAmber,
     bipvLapis,
     lowEGlass,
+    lowEGlassLit,
     mullion,
     amberGlow,
     glassRail,

@@ -16,13 +16,13 @@ export function createScaleRefs(materials) {
     [-2, -0.35, 10],
     [-4, -0.35, 11],
     [0, -0.35, 9],
-    // Roof terraces (tier heights approx)
-    [8, 1.55, -4],
-    [-6, 1.55, 2],
-    [4, 2.8, 3],
-    [-3, 2.8, -2],
-    [2, 3.85, 0],
-    [-5, 3.85, 1],
+    // Roof terraces matching stacked-belt tier tops
+    [8, 1.7, -4],
+    [-6, 1.7, 2],
+    [4, 3.05, 3],
+    [-3, 3.05, -2],
+    [2, 4.25, 0],
+    [-5, 4.25, 1],
   ];
 
   spots.forEach((p, i) => {

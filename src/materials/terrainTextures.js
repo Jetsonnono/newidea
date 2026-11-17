@@ -82,13 +82,13 @@ export function createGravelTexture(size = 512) {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#4a4640';
+  ctx.fillStyle = '#2e2c28';
   ctx.fillRect(0, 0, size, size);
-  for (let i = 0; i < 8000; i += 1) {
+  for (let i = 0; i < 10000; i += 1) {
     const x = Math.random() * size;
     const y = Math.random() * size;
-    const v = 50 + Math.random() * 70;
-    ctx.fillStyle = `rgb(${v},${v - 4},${v - 10})`;
+    const v = 35 + Math.random() * 55;
+    ctx.fillStyle = `rgb(${v},${v - 3},${v - 8})`;
     ctx.fillRect(x, y, 1 + Math.random() * 2, 1 + Math.random() * 2);
   }
   const tex = new THREE.CanvasTexture(canvas);

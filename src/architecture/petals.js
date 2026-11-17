@@ -18,7 +18,7 @@ export function createPetalArray(materials) {
     materials.steel
   );
   ring.rotation.x = Math.PI / 2;
-  ring.position.y = 3.55;
+  ring.position.y = 3.95;
   ring.castShadow = true;
   ring.receiveShadow = true;
   ring.userData.layer = 'roof';
@@ -30,7 +30,7 @@ export function createPetalArray(materials) {
     materials.concrete
   );
   outerRing.rotation.x = Math.PI / 2;
-  outerRing.position.y = 2.55;
+  outerRing.position.y = 3.0;
   outerRing.castShadow = true;
   outerRing.userData.layer = 'roof';
   outerRing.userData.restY = outerRing.position.y;
@@ -43,7 +43,7 @@ export function createPetalArray(materials) {
       index: i,
       angle,
       radius: 9.5 + (i % 3) * 0.35,
-      baseY: 3.4,
+      baseY: 3.85,
       trunkH: 5.2 + (i % 4) * 0.35,
       length: 6.4,
       width: 2.35,
@@ -60,7 +60,7 @@ export function createPetalArray(materials) {
       index: 10 + i,
       angle,
       radius: 13.8 + (i % 5) * 0.55,
-      baseY: 2.4,
+      baseY: 2.85,
       trunkH: 6.8 + (i % 5) * 0.45,
       length: 9.2,
       width: 3.1,

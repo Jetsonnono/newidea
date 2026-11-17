@@ -24,8 +24,8 @@ export function createBuilding(materials) {
   // Five museum board layers
   const layerFoundation = mkLayer('Layer5_Foundation', 'foundation');
   const layerProgram = mkLayer('Layer4_Program', 'program');
-  const layerSteel = mkLayer('Layer3_Steel', 'steel', 3.15);
-  const layerGlass = mkLayer('Layer2_Glass', 'glass', 3.15);
+  const layerSteel = mkLayer('Layer3_Steel', 'steel', 3.55);
+  const layerGlass = mkLayer('Layer2_Glass', 'glass', 3.55);
   const layerPetals = mkLayer('Layer1_Petals', 'petals');
 
   // —— Foundation (base + earth + courtyard) ——
@@ -64,7 +64,7 @@ export function createBuilding(materials) {
     new THREE.CylinderGeometry(12.2, 13.5, 0.85, 48),
     materials.concrete
   );
-  podium.position.y = 3.05;
+  podium.position.y = 3.45;
   podium.castShadow = true;
   podium.receiveShadow = true;
   layerProgram.add(podium);
@@ -82,15 +82,15 @@ export function createBuilding(materials) {
     } else {
       if (child.name === 'CausticSpots') causticSpots = child;
       // Cores / floor / caustics → program layer (local coords at atrium height)
-      child.position.y += 3.15;
+      child.position.y += 3.55;
       layerProgram.add(child);
     }
   }
   // glass & steel sit at world atrium height via layer.restY
-  layerGlass.userData.restY = 3.15;
-  layerGlass.position.y = 3.15;
-  layerSteel.userData.restY = 3.15;
-  layerSteel.position.y = 3.15;
+  layerGlass.userData.restY = 3.55;
+  layerGlass.position.y = 3.55;
+  layerSteel.userData.restY = 3.55;
+  layerSteel.position.y = 3.55;
 
   // Extra program content: spiral stair + BESS cabinets
   addProgramInteriors(layerProgram, materials);
@@ -146,7 +146,7 @@ export function createBuilding(materials) {
 
 function addProgramInteriors(layer, materials) {
   // Two ring research office floors visible through translucent BIPV
-  [3.95, 5.85].forEach((y, fi) => {
+  [4.35, 6.25].forEach((y, fi) => {
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(4.2 - fi * 0.3, 10.4 - fi * 0.4, 64),
       materials.concrete
@@ -192,7 +192,7 @@ function addProgramInteriors(layer, materials) {
       new THREE.BoxGeometry(1.15, 0.08, 0.48),
       materials.concrete
     );
-    step.position.set(Math.cos(a) * r, 3.35 + t * 5.0, Math.sin(a) * r);
+    step.position.set(Math.cos(a) * r, 3.75 + t * 5.0, Math.sin(a) * r);
     step.rotation.y = -a;
     step.castShadow = true;
     step.receiveShadow = true;
@@ -203,10 +203,10 @@ function addProgramInteriors(layer, materials) {
     materials.steel
   );
   rail.rotation.x = Math.PI / 2;
-  rail.position.y = 5.8;
+  rail.position.y = 6.2;
   stair.add(rail);
   const rail2 = rail.clone();
-  rail2.position.y = 7.4;
+  rail2.position.y = 7.8;
   stair.add(rail2);
   layer.add(stair);
 
@@ -215,7 +215,7 @@ function addProgramInteriors(layer, materials) {
     new THREE.CylinderGeometry(2.6, 3.2, 5.5, 24, 1, true),
     materials.amberGlow
   );
-  atriumGlow.position.y = 5.5;
+  atriumGlow.position.y = 5.9;
   atriumGlow.material = materials.amberGlow.clone();
   atriumGlow.material.transparent = true;
   atriumGlow.material.opacity = 0.35;
@@ -228,14 +228,14 @@ function addProgramInteriors(layer, materials) {
       new THREE.BoxGeometry(1.2, 2.2, 0.7),
       materials.carbon
     );
-    cab.position.set(-7 + i * 1.5, 4.3, -6.5);
+    cab.position.set(-7 + i * 1.5, 4.7, -6.5);
     cab.castShadow = true;
     layer.add(cab);
     const stripe = new THREE.Mesh(
       new THREE.BoxGeometry(1.05, 0.08, 0.72),
       materials.cyanGlow
     );
-    stripe.position.set(-7 + i * 1.5, 4.9, -6.5);
+    stripe.position.set(-7 + i * 1.5, 5.3, -6.5);
     layer.add(stripe);
   }
 }
