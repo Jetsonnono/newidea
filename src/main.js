@@ -1,8 +1,12 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import './style.css';
-import { createMaterials, setWireframeMode } from './materials.js';
-import { createBuilding, setExplodedView } from './architecture/building.js';
+import { createMaterials } from './materials.js';
+import {
+  createBuilding,
+  setExplodedView,
+  getExhibitionLayerHeights,
+} from './architecture/building.js';
 import { updatePetalTracking } from './architecture/petals.js';
 import { updateCaustics } from './architecture/atrium.js';
 import { createEnvironment } from './environment.js';
@@ -13,12 +17,16 @@ import {
 } from './systems/sun.js';
 import { createAtmosphere } from './systems/atmosphere.js';
 import { createPostProcessing } from './systems/postprocessing.js';
+import { createCalloutSystem } from './systems/callouts.js';
+import { createHeatmapController } from './systems/heatmap.js';
+import { createClayWireframeController } from './systems/clayWireframe.js';
 import { computePowerKW, PEAK_KW } from './systems/power.js';
 import { createViewController } from './systems/views.js';
 import { exportScreenshot } from './systems/screenshot.js';
 import { bindPanel } from './ui/panel.js';
 
 const canvas = document.getElementById('scene-canvas');
+const appEl = document.getElementById('app');
 
 const renderer = new THREE.WebGLRenderer({
   canvas,
@@ -50,7 +58,7 @@ controls.enableDamping = true;
 controls.dampingFactor = 0.06;
 controls.maxPolarAngle = Math.PI * 0.49;
 controls.minDistance = 3;
-controls.maxDistance = 120;
+controls.maxDistance = 140;
 controls.update();
 
 const materials = createMaterials();
@@ -61,6 +69,9 @@ const building = createBuilding(materials);
 scene.add(building);
 
 const post = createPostProcessing(renderer, scene, camera);
+const callouts = createCalloutSystem(scene);
+const heatmap = createHeatmapController(building);
+const clay = createClayWireframeController(building);
 
 const viewController = createViewController(camera, controls);
 viewController.setView('aerial', true);
@@ -68,42 +79,139 @@ viewController.setView('aerial', true);
 const state = {
   minutes: 720,
   explodeAmount: 0,
-  wireframe: false,
+  explodeTarget: 0,
+  mode: 'aerial',
+  boardWhite: false,
   alignment: 0.8,
   envFrame: 0,
+  prevEnvVisible: true,
 };
+
+function setEnvironmentVisible(visible) {
+  if (env?.group) env.group.visible = visible;
+  if (sunRig?.sunOrb) sunRig.sunOrb.visible = visible;
+  if (visible) {
+    if (!scene.fog) scene.fog = new THREE.FogExp2(0xb8c2c6, 0.0012);
+  } else {
+    scene.fog = null;
+  }
+}
+
+function applyBoardPresentation(enabled) {
+  state.boardWhite = enabled;
+  appEl.classList.toggle('board-mode', enabled && state.mode === 'explode');
+  callouts.setBoardStyle(enabled);
+
+  if (enabled && state.mode === 'explode') {
+    setEnvironmentVisible(false);
+    scene.background = new THREE.Color(0xffffff);
+    scene.backgroundIntensity = 1;
+    scene.environmentIntensity = 0.35;
+    post.setEnabled(false);
+    renderer.toneMappingExposure = 1.05;
+  } else if (state.mode !== 'wireframe' && state.mode !== 'heatmap') {
+    setEnvironmentVisible(true);
+    atmosphere.updateEnvironment(true);
+    post.setEnabled(true);
+  }
+}
+
+function clearAnalysisModes() {
+  heatmap.disable();
+  clay.disable();
+  callouts.setVisible(false);
+  appEl.classList.remove('board-mode');
+}
+
+function enterMode(mode) {
+  const prev = state.mode;
+  state.mode = mode;
+  clearAnalysisModes();
+
+  // Default presentation restore
+  setEnvironmentVisible(true);
+  post.setEnabled(true);
+
+  if (mode === 'explode') {
+    state.explodeTarget = 1;
+    callouts.setVisible(true);
+    applyBoardPresentation(ui.isBoardWhite());
+  } else {
+    state.explodeTarget = 0;
+    if (prev === 'explode' && !ui.isBoardWhite()) {
+      atmosphere.updateEnvironment(true);
+    }
+  }
+
+  if (mode === 'heatmap') {
+    heatmap.enable();
+    post.setEnabled(true);
+    // Keep sky readable behind heat colors
+    scene.backgroundIntensity = 0.45;
+  }
+
+  if (mode === 'wireframe') {
+    clay.enable();
+    post.setEnabled(false);
+    setEnvironmentVisible(true);
+    scene.background = new THREE.Color(0xd8ddd6);
+    scene.backgroundIntensity = 1;
+    scene.fog = new THREE.FogExp2(0xd0d5ce, 0.0015);
+  } else if (mode !== 'explode' || !ui.isBoardWhite()) {
+    atmosphere.updateEnvironment(true);
+  }
+
+  viewController.setView(mode);
+}
 
 const ui = bindPanel({
   onTimeChange(minutes) {
     state.minutes = minutes;
   },
   onViewChange(view) {
-    viewController.setView(view);
-    state.wireframe = view === 'wireframe';
-    setWireframeMode(building, materials, state.wireframe);
-    // Soften bloom/SSAO in analytic wireframe mode
-    post.setEnabled(!state.wireframe);
-    if (state.wireframe) {
-      scene.background = new THREE.Color(0x1e2622);
-      scene.backgroundIntensity = 1;
-    } else {
-      atmosphere.updateEnvironment(true);
-    }
-    state.explodeTarget = view === 'explode' ? 1 : 0;
+    enterMode(view);
   },
-  async onExport({ transparent }) {
+  onBoardWhiteChange(checked) {
+    if (state.mode === 'explode') applyBoardPresentation(checked);
+    else state.boardWhite = checked;
+  },
+  async onExport({ transparent, board }) {
+    const wantBoard = !!board || (state.mode === 'explode' && ui.isBoardWhite());
     ui.setPanelVisible(false);
-    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    const prevBoard = state.boardWhite;
+    if (wantBoard && state.mode !== 'explode') {
+      // Temporarily jump to explode board for export
+      enterMode('explode');
+      ui.setBoardWhite(true);
+      applyBoardPresentation(true);
+      // Wait for explode animation to settle
+      for (let i = 0; i < 45; i += 1) {
+        state.explodeAmount = THREE.MathUtils.lerp(state.explodeAmount, 1, 0.18);
+        setExplodedView(building, state.explodeAmount);
+        callouts.syncToLayers(getExhibitionLayerHeights(building, state.explodeAmount));
+        await new Promise((r) => requestAnimationFrame(r));
+      }
+    } else {
+      await new Promise((r) =>
+        requestAnimationFrame(() => requestAnimationFrame(r))
+      );
+    }
+
     await exportScreenshot(renderer, scene, camera, {
-      transparent,
-      composer: post.composer,
+      transparent: transparent && !wantBoard,
+      composer: wantBoard || state.mode === 'wireframe' ? null : post.composer,
       onResizeComposer: post.setSize,
+      forceWhite: wantBoard,
     });
+
     ui.setPanelVisible(true);
+    if (wantBoard && !prevBoard && state.mode === 'explode') {
+      // keep board if user had it on via checkbox during export-board from other mode
+    }
   },
 });
 
-state.explodeTarget = 0;
 state.minutes = ui.getMinutes();
 
 function syncSunAndSystems() {
@@ -111,9 +219,12 @@ function syncSunAndSystems() {
   applySunToRig(sunRig, sunState);
 
   atmosphere.setSunPosition(sunState.position);
-  // Rebuild env map every ~20 frames or when sun jumps
   state.envFrame += 1;
-  if (state.envFrame % 20 === 0) {
+  if (
+    state.envFrame % 20 === 0 &&
+    state.mode !== 'wireframe' &&
+    !(state.mode === 'explode' && state.boardWhite)
+  ) {
     atmosphere.updateEnvironment();
   }
 
@@ -123,27 +234,34 @@ function syncSunAndSystems() {
   );
   state.alignment = alignment;
 
-  updateCaustics(
-    building.userData.parts.atrium,
-    sunState.direction,
-    sunState.irradiance
-  );
+  if (state.mode !== 'heatmap' && state.mode !== 'wireframe') {
+    updateCaustics(
+      building.userData.parts.atrium,
+      sunState.direction,
+      sunState.irradiance
+    );
+  }
+
+  if (heatmap.active) {
+    heatmap.update(sunState.direction, sunState.irradiance, alignment);
+  }
 
   const kw = computePowerKW(sunState.irradiance, alignment);
   ui.updatePower(kw, alignment, PEAK_KW);
 
-  if (scene.fog) {
+  if (scene.fog && state.mode !== 'wireframe' && !(state.boardWhite && state.mode === 'explode')) {
     scene.fog.color.setHSL(0.55, 0.1, 0.55 + sunState.irradiance * 0.08);
-    scene.fog.density = state.wireframe ? 0.004 : 0.001;
+    scene.fog.density = 0.001;
   }
 
-  // Exposure breathes with irradiance; stay conservative under ACES + bloom
-  renderer.toneMappingExposure = 0.72 + sunState.irradiance * 0.14;
-  if (scene.backgroundIntensity !== undefined) {
-    scene.backgroundIntensity = 0.55 + sunState.irradiance * 0.2;
-  }
-  if (scene.environmentIntensity !== undefined) {
-    scene.environmentIntensity = 0.4 + sunState.irradiance * 0.15;
+  if (!(state.boardWhite && state.mode === 'explode') && state.mode !== 'wireframe') {
+    renderer.toneMappingExposure = 0.72 + sunState.irradiance * 0.14;
+    if (scene.backgroundIntensity !== undefined && state.mode !== 'heatmap') {
+      scene.backgroundIntensity = 0.55 + sunState.irradiance * 0.2;
+    }
+    if (scene.environmentIntensity !== undefined) {
+      scene.environmentIntensity = 0.4 + sunState.irradiance * 0.15;
+    }
   }
 
   return sunState;
@@ -156,6 +274,7 @@ function onResize() {
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
   post.setSize(w, h);
+  callouts.setSize(w, h);
 }
 window.addEventListener('resize', onResize);
 
@@ -169,18 +288,38 @@ function animate() {
 
   state.explodeAmount = THREE.MathUtils.lerp(
     state.explodeAmount,
-    state.explodeTarget ?? 0,
-    1 - Math.pow(0.001, dt)
+    state.explodeTarget,
+    1 - Math.pow(0.0008, dt)
   );
   setExplodedView(building, state.explodeAmount);
 
+  if (state.mode === 'explode') {
+    callouts.syncToLayers(getExhibitionLayerHeights(building, state.explodeAmount));
+  }
+
   syncSunAndSystems();
   controls.update();
-  post.render();
+
+  if (state.mode === 'wireframe' || (state.mode === 'explode' && state.boardWhite)) {
+    renderer.render(scene, camera);
+  } else {
+    post.render();
+  }
+  callouts.render();
 }
 
 syncSunAndSystems();
 atmosphere.updateEnvironment(true);
 animate();
 
-window.HelioMatrix = { scene, camera, building, materials, post, atmosphere };
+window.HelioMatrix = {
+  scene,
+  camera,
+  building,
+  materials,
+  post,
+  atmosphere,
+  heatmap,
+  clay,
+  callouts,
+};

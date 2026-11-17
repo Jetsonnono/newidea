@@ -13,18 +13,14 @@ export function bindPanel(callbacks) {
   const presets = document.getElementById('view-presets');
   const exportWhite = document.getElementById('btn-export-white');
   const exportTransparent = document.getElementById('btn-export-transparent');
+  const exportBoard = document.getElementById('btn-export-board');
+  const boardWhite = document.getElementById('chk-board-white');
   const app = document.getElementById('app');
 
   function setPanelVisible(visible) {
     panel.hidden = !visible;
     showBtn.hidden = visible;
     app.classList.toggle('ui-hidden', !visible);
-    // Keep brand/footer when panel shown; when hidden for screenshot, hide all chrome
-    if (!visible) {
-      app.classList.add('ui-hidden');
-    } else {
-      app.classList.remove('ui-hidden');
-    }
   }
 
   hideBtn.addEventListener('click', () => setPanelVisible(false));
@@ -45,8 +41,15 @@ export function bindPanel(callbacks) {
     callbacks.onViewChange?.(btn.dataset.view);
   });
 
+  boardWhite?.addEventListener('change', () => {
+    callbacks.onBoardWhiteChange?.(boardWhite.checked);
+  });
+
   exportWhite.addEventListener('click', () => callbacks.onExport?.({ transparent: false }));
   exportTransparent.addEventListener('click', () => callbacks.onExport?.({ transparent: true }));
+  exportBoard?.addEventListener('click', () =>
+    callbacks.onExport?.({ transparent: false, board: true })
+  );
 
   function updatePower(kw, alignment, peak = 186) {
     powerValue.textContent = formatPower(kw);
@@ -54,12 +57,22 @@ export function bindPanel(callbacks) {
     petalAngle.textContent = `花瓣平均对齐 ${(alignment * 100).toFixed(0)}% · 实时追光`;
   }
 
-  // Initialize display
+  function setActiveView(view) {
+    presets.querySelectorAll('button').forEach((b) => {
+      b.classList.toggle('active', b.dataset.view === view);
+    });
+  }
+
   timeDisplay.textContent = minutesToClock(Number(timeSlider.value));
 
   return {
     getMinutes: () => Number(timeSlider.value),
+    isBoardWhite: () => !!boardWhite?.checked,
+    setBoardWhite(v) {
+      if (boardWhite) boardWhite.checked = v;
+    },
     updatePower,
     setPanelVisible,
+    setActiveView,
   };
 }

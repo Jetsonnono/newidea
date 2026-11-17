@@ -18,12 +18,18 @@ export const VIEW_PRESETS = {
   },
   explode: {
     label: '结构爆炸图',
-    position: new THREE.Vector3(52, 36, 46),
-    target: new THREE.Vector3(0, 16, 0),
+    // Isometric-like 45° elevated axonometric
+    position: new THREE.Vector3(48, 48, 48),
+    target: new THREE.Vector3(0, 20, 0),
+  },
+  heatmap: {
+    label: '太阳辐射热力分析',
+    position: new THREE.Vector3(36, 28, 40),
+    target: new THREE.Vector3(0, 8, 0),
   },
   wireframe: {
     label: '白模线框分析模式',
-    position: new THREE.Vector3(-32, 22, 36),
+    position: new THREE.Vector3(-34, 24, 38),
     target: new THREE.Vector3(0, 8, 0),
   },
 };
@@ -58,7 +64,7 @@ export function createViewController(camera, controls) {
 
   function update(dt = 1 / 60) {
     if (!state.animating) return state.current;
-    state.t = Math.min(1, state.t + dt * 1.2);
+    state.t = Math.min(1, state.t + dt * 1.05);
     const e = easeInOutCubic(state.t);
     camera.position.lerpVectors(state.fromPos, state.toPos, e);
     controls.target.lerpVectors(state.fromTarget, state.toTarget, e);

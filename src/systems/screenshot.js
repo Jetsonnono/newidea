@@ -1,14 +1,18 @@
 import * as THREE from 'three';
 
 /**
- * Export a 4K PNG with transparent or pure white background.
- * Uses EffectComposer when provided so bloom/SSAO are baked in.
+ * Export a 4K PNG with transparent, pure white, or exhibition-board background.
  */
 export async function exportScreenshot(
   renderer,
   scene,
   camera,
-  { transparent = false, composer = null, onResizeComposer = null } = {}
+  {
+    transparent = false,
+    composer = null,
+    onResizeComposer = null,
+    forceWhite = false,
+  } = {}
 ) {
   const width = 3840;
   const height = 2160;
@@ -19,8 +23,9 @@ export async function exportScreenshot(
   const prevClear = renderer.getClearColor(new THREE.Color());
   const prevAlpha = renderer.getClearAlpha();
   const prevBackground = scene.background;
-  const prevEnvHidden = [];
+  const prevBgIntensity = scene.backgroundIntensity;
   const prevFog = scene.fog;
+  const prevEnvHidden = [];
 
   scene.traverse((obj) => {
     if (obj.userData?.hideOnExport) {
@@ -29,12 +34,13 @@ export async function exportScreenshot(
     }
   });
 
-  if (transparent) {
+  if (transparent && !forceWhite) {
     scene.background = null;
     scene.fog = null;
     renderer.setClearColor(0x000000, 0);
   } else {
     scene.background = new THREE.Color(0xffffff);
+    scene.backgroundIntensity = 1;
     scene.fog = null;
     renderer.setClearColor(0xffffff, 1);
   }
@@ -43,10 +49,9 @@ export async function exportScreenshot(
   renderer.setSize(width, height, false);
   if (onResizeComposer) onResizeComposer(width, height);
 
-  if (composer && !transparent) {
+  if (composer && !transparent && !forceWhite) {
     composer.render();
   } else {
-    // Transparent export: skip bloom (it needs opaque clear)
     renderer.render(scene, camera);
   }
 
@@ -56,16 +61,19 @@ export async function exportScreenshot(
     obj.visible = visible;
   });
   scene.background = prevBackground;
+  scene.backgroundIntensity = prevBgIntensity;
   scene.fog = prevFog;
   renderer.setClearColor(prevClear, prevAlpha);
   renderer.setPixelRatio(prevPixelRatio);
   renderer.setSize(prevSize.x, prevSize.y, false);
   if (onResizeComposer) onResizeComposer(prevSize.x, prevSize.y);
 
-  downloadDataURL(
-    dataURL,
-    transparent ? 'helio-matrix-4k-transparent.png' : 'helio-matrix-4k-white.png'
-  );
+  const name = forceWhite
+    ? 'helio-matrix-4k-board.png'
+    : transparent
+      ? 'helio-matrix-4k-transparent.png'
+      : 'helio-matrix-4k-white.png';
+  downloadDataURL(dataURL, name);
 }
 
 function downloadDataURL(dataURL, filename) {

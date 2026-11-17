@@ -63,21 +63,27 @@
         </section>
 
         <section class="panel-block">
-          <p class="block-title">视角预设</p>
+          <p class="block-title">展板分析模式</p>
           <div class="preset-grid" id="view-presets">
             <button type="button" data-view="aerial" class="active">鸟瞰全景</button>
             <button type="button" data-view="human">人视仰拍</button>
             <button type="button" data-view="atrium">中庭室内光影</button>
             <button type="button" data-view="explode">结构爆炸图</button>
+            <button type="button" data-view="heatmap">辐射热力分析</button>
             <button type="button" data-view="wireframe">白模线框</button>
           </div>
         </section>
 
-        <section class="panel-block">
-          <p class="block-title">高清截图导出</p>
+        <section class="panel-block" id="board-options">
+          <p class="block-title">展板导出选项</p>
+          <label class="check-row">
+            <input type="checkbox" id="chk-board-white" />
+            <span>爆炸图纯白展板背景</span>
+          </label>
           <div class="export-row">
             <button type="button" id="btn-export-white" class="primary">4K 纯白背景</button>
             <button type="button" id="btn-export-transparent">4K 透明背景</button>
+            <button type="button" id="btn-export-board">4K 展板底图</button>
           </div>
         </section>
       </aside>
@@ -85,6 +91,20 @@
       <button type="button" class="show-panel-btn" id="btn-show-panel" hidden>
         显示控制台
       </button>
+
+      <aside class="heatmap-legend" id="heatmap-legend" hidden>
+        <p class="legend-title">太阳辐射照度</p>
+        <div class="legend-scale" aria-hidden="true"></div>
+        <div class="legend-ends"><span>0</span><span>1200 W/m²</span></div>
+        <p class="legend-metric">
+          平均追光捕获效率
+          <strong id="heatmap-efficiency">96.0%</strong>
+        </p>
+        <p class="legend-metric">
+          瞬时面均辐照
+          <strong id="heatmap-flux">0 W/m²</strong>
+        </p>
+      </aside>
 
       <footer class="hud-footer" id="hud-footer">
         <span>24× 钙钛矿仿生追光花瓣</span>
