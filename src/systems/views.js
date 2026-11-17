@@ -18,9 +18,9 @@ export const VIEW_PRESETS = {
   },
   explode: {
     label: '结构爆炸图',
-    // Isometric-like 45° elevated axonometric
-    position: new THREE.Vector3(48, 48, 48),
-    target: new THREE.Vector3(0, 20, 0),
+    // Isometric-like; distance ×1.35 so petals + base stay fully framed
+    position: new THREE.Vector3(64.8, 58, 64.8),
+    target: new THREE.Vector3(0, 16, 0),
   },
   heatmap: {
     label: '太阳辐射热力分析',

@@ -20,9 +20,9 @@ export function createEnvironment(scene, materials) {
   materials.gravel.map = gravelTex;
   materials.gravel.needsUpdate = true;
 
-  // Plateau terrain with procedural height + vertex colors + CanvasTexture
-  const size = 220;
-  const seg = 128;
+  // Plateau terrain — radius ×3 so rectangular edge never reads in frame
+  const size = 660;
+  const seg = 192;
   const groundGeo = new THREE.PlaneGeometry(size, size, seg, seg);
   groundGeo.rotateX(-Math.PI / 2);
   const pos = groundGeo.attributes.position;
@@ -30,24 +30,32 @@ export function createEnvironment(scene, materials) {
   const warm = new THREE.Color(0xa89072);
   const cool = new THREE.Color(0x7a8488);
   const dust = new THREE.Color(0xb8a078);
+  const mist = new THREE.Color(0xc8d4de);
 
   for (let i = 0; i < pos.count; i += 1) {
     const x = pos.getX(i);
     const z = pos.getZ(i);
     const dist = Math.hypot(x, z);
-    // Keep building pad relatively flat
-    const pad = THREE.MathUtils.smoothstep(dist, 24, 60);
+    // Flat pad near building → rolling mid → lifted far hills that hide the plane edge
+    const pad = THREE.MathUtils.smoothstep(dist, 24, 70);
+    const mid = THREE.MathUtils.smoothstep(dist, 80, 180);
+    const far = THREE.MathUtils.smoothstep(dist, 200, 320);
     const n =
       fbm(x * 0.045, z * 0.045, 5) * 6.5 +
       fbm(x * 0.014, z * 0.014, 3) * 12 +
       fbm(x * 0.09, z * 0.09, 2) * 2.4;
-    const h = Math.max(-0.5, n * pad - 0.25);
+    // Smooth lift at distance so mesh edge sinks into fog/hills
+    const hillLift =
+      mid * (8 + fbm(x * 0.008, z * 0.008, 3) * 14) +
+      far * (18 + fbm(x * 0.005 + 3, z * 0.005, 2) * 22);
+    const h = Math.max(-0.5, n * pad - 0.25 + hillLift);
     pos.setY(i, h);
 
     const t = fbm(x * 0.02 + 10, z * 0.02, 3);
     const c = cool.clone().lerp(warm, t).lerp(dust, pad * 0.35);
-    // Slight green near moisture pockets
     if (t > 0.62 && pad > 0.4) c.lerp(new THREE.Color(0x6d7a52), 0.25);
+    // Cool mist tint toward far hills → blends with FogExp2 / snow ridges
+    c.lerp(mist, far * 0.55);
     colors.push(c.r, c.g, c.b);
   }
   groundGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
@@ -58,7 +66,7 @@ export function createEnvironment(scene, materials) {
   ground.position.y = -0.05;
   group.add(ground);
 
-  // Dark gravel apron around building base — kills floating look
+  // Dark gravel apron around building base
   const apron = new THREE.Mesh(
     new THREE.RingGeometry(22, 34, 72),
     materials.gravel
@@ -77,25 +85,25 @@ export function createEnvironment(scene, materials) {
   apronInner.receiveShadow = true;
   group.add(apronInner);
 
-  // Mid-ground dune mounds so aerial reads as rolling plateau
-  for (let i = 0; i < 14; i += 1) {
-    const a = (i / 14) * Math.PI * 2 + 0.35;
-    const d = 36 + (i % 5) * 9;
+  // Mid-ground dune mounds
+  for (let i = 0; i < 18; i += 1) {
+    const a = (i / 18) * Math.PI * 2 + 0.35;
+    const d = 40 + (i % 6) * 12;
     const mound = new THREE.Mesh(
-      new THREE.SphereGeometry(7 + (i % 4) * 2.5, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.5),
+      new THREE.SphereGeometry(8 + (i % 4) * 2.8, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.5),
       materials.earthFill
     );
     mound.position.set(Math.cos(a) * d, -0.8, Math.sin(a) * d);
-    mound.scale.set(1.6, 0.28 + (i % 3) * 0.08, 1.25);
+    mound.scale.set(1.7, 0.3 + (i % 3) * 0.08, 1.3);
     mound.receiveShadow = true;
     mound.castShadow = true;
     group.add(mound);
   }
 
   // Sparse plateau shrubs / rocks
-  for (let i = 0; i < 40; i += 1) {
+  for (let i = 0; i < 50; i += 1) {
     const a = Math.random() * Math.PI * 2;
-    const d = 32 + Math.random() * 70;
+    const d = 34 + Math.random() * 90;
     const x = Math.cos(a) * d;
     const z = Math.sin(a) * d;
     if (Math.random() > 0.45) {
@@ -121,39 +129,37 @@ export function createEnvironment(scene, materials) {
     }
   }
 
-  // Distant low-poly snow ridge ring
+  // Distant Kunlun-style snow ridges — beyond lifted terrain, soft into fog
   const ridgeGroup = new THREE.Group();
   ridgeGroup.userData.hideOnExport = true;
-  for (let i = 0; i < 18; i += 1) {
-    const a = (i / 18) * Math.PI * 2 + 0.12;
-    const d = 95 + (i % 4) * 8;
+  for (let i = 0; i < 22; i += 1) {
+    const a = (i / 22) * Math.PI * 2 + 0.12;
+    const d = 240 + (i % 5) * 18;
     const peak = new THREE.Mesh(
-      new THREE.ConeGeometry(10 + (i % 5) * 3, 14 + (i % 3) * 6, 5),
+      new THREE.ConeGeometry(14 + (i % 5) * 4, 22 + (i % 4) * 8, 5),
       i % 3 === 0 ? materials.snow : materials.rock
     );
-    peak.position.set(Math.cos(a) * d, 4 + (i % 4), Math.sin(a) * d);
+    peak.position.set(Math.cos(a) * d, 12 + (i % 5) * 2, Math.sin(a) * d);
     peak.rotation.y = a;
     peak.userData.hideOnExport = true;
     ridgeGroup.add(peak);
 
-    // Snow cap blend
     if (i % 3 !== 0) {
       const cap = new THREE.Mesh(
-        new THREE.ConeGeometry(5 + (i % 4), 5, 5),
+        new THREE.ConeGeometry(7 + (i % 4), 8, 5),
         materials.snow
       );
       cap.position.copy(peak.position);
-      cap.position.y += 7;
+      cap.position.y += 12;
       cap.userData.hideOnExport = true;
       ridgeGroup.add(cap);
     }
   }
   group.add(ridgeGroup);
 
-  // Physical Sky + PMREM are owned by systems/atmosphere.js
   scene.add(group);
-  // Light highland haze — keep subtle so Sky + env reflections read clearly
-  scene.fog = new THREE.FogExp2(0xb8c2c6, 0.0012);
+  // Cool grey-blue highland haze — blends gravel frost with far snow ridges
+  scene.fog = new THREE.FogExp2(0xd8e2ec, 0.0018);
   scene.background = null;
 
   return { group, ground };

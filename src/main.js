@@ -91,7 +91,7 @@ function setEnvironmentVisible(visible) {
   if (env?.group) env.group.visible = visible;
   if (sunRig?.sunOrb) sunRig.sunOrb.visible = visible;
   if (visible) {
-    if (!scene.fog) scene.fog = new THREE.FogExp2(0xb8c2c6, 0.0012);
+    if (!scene.fog) scene.fog = new THREE.FogExp2(0xd8e2ec, 0.0018);
   } else {
     scene.fog = null;
   }
@@ -156,7 +156,7 @@ function enterMode(mode) {
     setEnvironmentVisible(true);
     scene.background = new THREE.Color(0xd8ddd6);
     scene.backgroundIntensity = 1;
-    scene.fog = new THREE.FogExp2(0xd0d5ce, 0.0015);
+    scene.fog = new THREE.FogExp2(0xd8e2ec, 0.0018);
   } else if (mode !== 'explode' || !ui.isBoardWhite()) {
     atmosphere.updateEnvironment(true);
   }
@@ -250,8 +250,9 @@ function syncSunAndSystems() {
   ui.updatePower(kw, alignment, PEAK_KW);
 
   if (scene.fog && state.mode !== 'wireframe' && !(state.boardWhite && state.mode === 'explode')) {
-    scene.fog.color.setHSL(0.55, 0.1, 0.55 + sunState.irradiance * 0.08);
-    scene.fog.density = 0.001;
+    // Keep cool highland mist (0xd8e2ec) with slight day/night value shift
+    scene.fog.color.setHSL(0.58, 0.14, 0.86 + sunState.irradiance * 0.04);
+    scene.fog.density = 0.0018;
   }
 
   if (!(state.boardWhite && state.mode === 'explode') && state.mode !== 'wireframe') {

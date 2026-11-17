@@ -47,22 +47,22 @@ export function createMaterials() {
     name: 'carbon',
   });
 
-  // See-through BIPV — exteriors can read ring floors / stair / amber glow
+  // Gem-like BIPV — lapis→amber→terracotta, warm amber glow from inside
   const bipvGlass = new THREE.MeshPhysicalMaterial({
     color: 0xffffff,
     vertexColors: true,
-    roughness: 0.14,
+    roughness: 0.08,
     metalness: 0.02,
-    transmission: 0.78,
-    thickness: 0.55,
+    transmission: 0.65,
+    thickness: 0.7,
     transparent: true,
-    opacity: 0.48,
+    opacity: 0.68,
     ior: 1.52,
-    attenuationColor: new THREE.Color(0xb8884a),
-    attenuationDistance: 2.2,
-    clearcoat: 0.45,
-    clearcoatRoughness: 0.14,
-    envMapIntensity: 1.2,
+    attenuationColor: new THREE.Color(0xd4a05a),
+    attenuationDistance: 1.6,
+    clearcoat: 0.55,
+    clearcoatRoughness: 0.1,
+    envMapIntensity: 1.35,
     side: THREE.DoubleSide,
     name: 'bipvGlass',
   });

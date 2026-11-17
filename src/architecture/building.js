@@ -240,21 +240,21 @@ function addProgramInteriors(layer, materials) {
   }
 }
 
-/** Museum-grade vertical offsets for five exhibition layers */
+/** Museum-grade vertical offsets — compressed −25% so full stack fits frame */
 const EXPLODE_OFFSETS = {
   foundation: 0,
-  program: 10,
-  steel: 20,
-  glass: 28,
-  petals: 38,
+  program: 7.5,
+  steel: 15,
+  glass: 21,
+  petals: 28.5,
   // aliases
   base: 0,
   earth: 0,
-  atriumFloor: 10,
-  podium: 10,
-  atriumSteel: 20,
-  roof: 20,
-  atriumGlass: 28,
+  atriumFloor: 7.5,
+  podium: 7.5,
+  atriumSteel: 15,
+  roof: 15,
+  atriumGlass: 21,
 };
 
 export function setExplodedView(building, amount) {
@@ -284,7 +284,7 @@ export function getExhibitionLayerHeights(building, amount = 1) {
     const rest = group.userData.restY ?? 0;
     const offset = EXPLODE_OFFSETS[key] ?? 0;
     // Approximate visual center of each separated pack
-    const packLift = { foundation: 1.2, program: 5, steel: 7, glass: 7, petals: 8 };
+    const packLift = { foundation: 1.2, program: 4, steel: 5.5, glass: 5.5, petals: 6 };
     heights[key] = rest + offset * amount + (packLift[key] ?? 4);
   });
   return heights;

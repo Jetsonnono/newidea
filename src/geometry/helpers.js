@@ -220,10 +220,10 @@ export function createAsymmetricDomeGeometry(opts = {}, radial = 48, heightSeg =
 }
 
 export function domeGradientColor(v, u) {
-  // lapis → amber → terracotta
-  const lapis = new THREE.Color(0x1f4d8a);
-  const amber = new THREE.Color(0xc9893a);
-  const terra = new THREE.Color(0xc45a2a);
+  // Saturated lapis → amber gold → terracotta
+  const lapis = new THREE.Color(0x1a5caa);
+  const amber = new THREE.Color(0xe8a040);
+  const terra = new THREE.Color(0xd45228);
   const azimuthWarm = 0.5 + 0.5 * Math.sin((u - 0.15) * Math.PI * 2); // south-west warmer
   let c;
   if (v < 0.45) {
@@ -231,6 +231,8 @@ export function domeGradientColor(v, u) {
   } else {
     c = amber.clone().lerp(terra, ((v - 0.45) / 0.55) * (0.4 + 0.6 * azimuthWarm));
   }
+  // Boost gem saturation without blowing value
+  c.offsetHSL(0, 0.12, 0.02);
   return c;
 }
 

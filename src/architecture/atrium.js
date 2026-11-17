@@ -188,6 +188,30 @@ export function createAtrium(materials) {
   group.userData.causticSpots = spots;
   group.userData.dome = DOME;
 
+  // Warm golden point lights — amber glow through BIPV from inside
+  const warmA = new THREE.PointLight(0xffaa33, 2.4, 22, 1.6);
+  warmA.position.set(0, 3.2, 0);
+  warmA.castShadow = false;
+  warmA.userData.layer = 'atriumFloor';
+  warmA.userData.restY = warmA.position.y;
+  group.add(warmA);
+
+  const warmB = new THREE.PointLight(0xffaa33, 1.35, 16, 1.8);
+  warmB.position.set(2.5, 5.8, -1.2);
+  warmB.castShadow = false;
+  warmB.userData.layer = 'atriumFloor';
+  warmB.userData.restY = warmB.position.y;
+  group.add(warmB);
+
+  const warmC = new THREE.PointLight(0xffcc66, 1.1, 14, 1.8);
+  warmC.position.set(-2.2, 4.5, 2.0);
+  warmC.castShadow = false;
+  warmC.userData.layer = 'atriumFloor';
+  warmC.userData.restY = warmC.position.y;
+  group.add(warmC);
+
+  group.userData.warmLights = [warmA, warmB, warmC];
+
   return group;
 }
 
