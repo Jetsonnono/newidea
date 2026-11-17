@@ -25,8 +25,8 @@ export function createMaterials() {
   });
 
   const shrub = new THREE.MeshStandardMaterial({
-    color: 0x6e7a48,
-    roughness: 0.9,
+    color: 0x6a7358,
+    roughness: 0.92,
     metalness: 0.0,
     name: 'shrub',
   });
@@ -158,75 +158,68 @@ export function createMaterials() {
     name: 'courtyard',
   });
 
-  // —— Perovskite petal: deep violet/obsidian + iridescence + etched maps ——
+  // —— Perovskite petal: #141226 obsidian + champagne #d4af37 busbars ——
   const { map, roughnessMap, emissiveMap } = createPerovskiteMaps(1024);
   const petalBody = new THREE.MeshPhysicalMaterial({
-    color: 0xffffff, // let map drive albedo fully
+    color: 0x141226,
     map,
     roughnessMap,
     emissiveMap,
-    emissive: new THREE.Color(0x3a2060),
-    emissiveIntensity: 0.35,
-    metalness: 0.78,
-    roughness: 0.3,
-    iridescence: 1.0,
-    iridescenceIOR: 1.8,
-    iridescenceThicknessRange: [100, 520],
-    clearcoat: 0.7,
-    clearcoatRoughness: 0.16,
-    envMapIntensity: 1.2,
+    emissive: new THREE.Color(0x1a1435),
+    emissiveIntensity: 0.14,
+    metalness: 0.55,
+    roughness: 0.42,
+    iridescence: 0.85,
+    iridescenceIOR: 1.7,
+    iridescenceThicknessRange: [120, 480],
+    clearcoat: 0.55,
+    clearcoatRoughness: 0.2,
+    envMapIntensity: 0.55,
     side: THREE.DoubleSide,
     name: 'petalBody',
   });
 
-  // Extra grazing film sheen layered on built-in iridescence
   petalBody.onBeforeCompile = (shader) => {
-    shader.fragmentShader = shader.fragmentShader.replace(
-      'vec3 totalEmissiveRadiance = emissive;',
-      `
-      vec3 totalEmissiveRadiance = emissive;
-      `
-    );
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <opaque_fragment>',
       `
       {
         vec3 viewDir = normalize(vViewPosition);
-        float graze = pow(1.0 - saturate(dot(normal, viewDir)), 2.6);
-        outgoingLight += vec3(0.14, 0.08, 0.26) * graze * 0.5;
-        outgoingLight += vec3(0.2, 0.14, 0.05) * graze * graze * 0.3;
+        float graze = pow(1.0 - saturate(dot(normal, viewDir)), 2.8);
+        // Soft blue-violet film edge + champagne rim kiss — no blown white
+        outgoingLight += vec3(0.1, 0.07, 0.22) * graze * 0.35;
+        outgoingLight += vec3(0.18, 0.14, 0.05) * graze * graze * 0.22;
       }
       #include <opaque_fragment>
       `
     );
   };
-  petalBody.customProgramCacheKey = () => 'perovskite-irid-v1';
+  petalBody.customProgramCacheKey = () => 'perovskite-irid-v2';
 
   const petalLattice = new THREE.MeshStandardMaterial({
-    color: 0x4a3a88,
-    roughness: 0.25,
-    metalness: 0.7,
+    color: 0x2a2440,
+    roughness: 0.35,
+    metalness: 0.55,
     name: 'petalLattice',
   });
 
-  // Champagne-gold aluminum rim
   const goldBusbar = new THREE.MeshPhysicalMaterial({
-    color: 0xd4b87a,
-    roughness: 0.22,
+    color: 0xd4af37,
+    roughness: 0.28,
     metalness: 1.0,
-    clearcoat: 0.4,
-    clearcoatRoughness: 0.2,
-    envMapIntensity: 1.5,
+    clearcoat: 0.45,
+    clearcoatRoughness: 0.18,
+    envMapIntensity: 1.25,
     name: 'goldBusbar',
   });
 
   const champagneGold = new THREE.MeshPhysicalMaterial({
-    color: 0xe2c792,
-    roughness: 0.28,
+    color: 0xd4af37,
+    roughness: 0.3,
     metalness: 0.95,
     clearcoat: 0.5,
-    clearcoatRoughness: 0.15,
-    envMapIntensity: 1.6,
+    clearcoatRoughness: 0.16,
+    envMapIntensity: 1.3,
     name: 'champagneGold',
   });
 
@@ -240,10 +233,31 @@ export function createMaterials() {
   });
 
   const road = new THREE.MeshStandardMaterial({
-    color: 0x8a8e86,
-    roughness: 0.85,
+    color: 0x3a3c40,
+    roughness: 0.9,
     metalness: 0.05,
     name: 'road',
+  });
+
+  const asphalt = new THREE.MeshStandardMaterial({
+    color: 0x2e3034,
+    roughness: 0.92,
+    metalness: 0.04,
+    name: 'asphalt',
+  });
+
+  const stipa = new THREE.MeshStandardMaterial({
+    color: 0xb89a5a,
+    roughness: 0.95,
+    metalness: 0.0,
+    name: 'stipa',
+  });
+
+  const ridgeRock = new THREE.MeshStandardMaterial({
+    color: 0x3d4a52,
+    roughness: 0.92,
+    metalness: 0.05,
+    name: 'ridgeRock',
   });
 
   const vehicle = new THREE.MeshStandardMaterial({
@@ -322,6 +336,9 @@ export function createMaterials() {
     champagneGold,
     ground,
     road,
+    asphalt,
+    stipa,
+    ridgeRock,
     vehicle,
     glassDark,
     cyanGlow,

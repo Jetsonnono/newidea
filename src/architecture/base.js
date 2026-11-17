@@ -51,21 +51,13 @@ export function createBase(materials) {
   court.position.set(-2, 0, 10);
   group.add(court);
 
-  // —— V2G canopy + vehicles (west / SW) ——
-  const v2g = createV2GHub(materials);
-  v2g.position.set(-18, 0.05, 12);
-  v2g.scale.setScalar(1.15);
+  // —— Embedded V2G garage (west, into tier-1 mass) ——
+  const v2g = createEmbeddedV2G(materials);
+  v2g.position.set(-22, 0, 6);
   group.add(v2g);
 
-  // Approach road ribbon
-  const road = new THREE.Mesh(new THREE.PlaneGeometry(10, 36), materials.road);
-  road.rotation.x = -Math.PI / 2;
-  road.position.set(18, 0.04, 22);
-  road.rotation.z = -0.55;
-  road.receiveShadow = true;
-  road.userData.layer = 'ramp';
-  road.userData.restY = road.position.y;
-  group.add(road);
+  // Asphalt trunk road + stone walkway
+  group.add(createRoadNetwork(materials));
 
   return group;
 }
@@ -255,22 +247,40 @@ function createGlassRailing(rx, rz, materials) {
 }
 
 function addTerraceShrubs(group, materials, tier, seed) {
-  const count = 8 + seed * 3;
+  const count = 10 + seed * 4;
+  const grassMat = materials.stipa || materials.shrub;
   for (let i = 0; i < count; i += 1) {
     const a = (i / count) * Math.PI * 2 + seed * 0.4;
     const r = 0.28 + (i % 5) * 0.08;
     const x = Math.cos(a) * tier.sx * r * 0.5;
     const z = Math.sin(a) * tier.sz * r * 0.5;
     const bush = new THREE.Mesh(
-      new THREE.SphereGeometry(0.35 + (i % 3) * 0.12, 8, 6),
+      new THREE.SphereGeometry(0.32 + (i % 3) * 0.1, 8, 6),
       materials.shrub
     );
     bush.position.set(x, tier.y + tier.h + 0.28, z);
-    bush.scale.set(1.1, 0.65, 1);
+    bush.scale.set(1.05, 0.6, 1);
     bush.castShadow = true;
     bush.userData.layer = 'earth';
     bush.userData.restY = bush.position.y;
     group.add(bush);
+
+    // Withered stipa tufts on terraces
+    for (let k = 0; k < 3; k += 1) {
+      const tuft = new THREE.Mesh(
+        new THREE.ConeGeometry(0.12, 0.55, 5),
+        grassMat
+      );
+      tuft.position.set(
+        x + (Math.random() - 0.5) * 1.2,
+        tier.y + tier.h + 0.2,
+        z + (Math.random() - 0.5) * 1.2
+      );
+      tuft.rotation.z = (Math.random() - 0.5) * 0.3;
+      tuft.userData.layer = 'earth';
+      tuft.userData.restY = tuft.position.y;
+      group.add(tuft);
+    }
   }
 }
 
@@ -371,131 +381,217 @@ function createSunkenCourtyard(materials) {
   return g;
 }
 
-function createV2GHub(materials) {
+/** Recessed semi-underground V2G bay cut into west podium */
+function createEmbeddedV2G(materials) {
   const g = new THREE.Group();
   g.name = 'V2GHub';
   g.userData.layer = 'ramp';
 
-  const rampPts = [];
-  for (let i = 0; i <= 20; i += 1) {
-    const t = i / 20;
-    rampPts.push(
-      new THREE.Vector3(
-        t * 10,
-        (1 - t) * 1.4 + 0.15,
-        -2 + Math.sin(t * Math.PI) * 2.5 + t * 4
-      )
-    );
-  }
-  const rampCurve = new THREE.CatmullRomCurve3(rampPts);
-  const rampMesh = new THREE.Mesh(
-    new THREE.TubeGeometry(rampCurve, 64, 2.2, 8, false),
-    materials.ramp
+  // Concrete portal / lintel
+  const lintel = new THREE.Mesh(
+    new THREE.BoxGeometry(14, 0.55, 1.2),
+    materials.concrete
   );
-  rampMesh.castShadow = true;
-  rampMesh.receiveShadow = true;
-  rampMesh.userData.restY = 0;
-  rampMesh.userData.layer = 'ramp';
-  g.add(rampMesh);
+  lintel.position.set(0, 2.85, 0.2);
+  lintel.castShadow = true;
+  lintel.userData.layer = 'ramp';
+  lintel.userData.restY = lintel.position.y;
+  g.add(lintel);
 
-  // Semi-transparent PV canopy
-  const canopyShape = createOrganicShape(14, 9, 0.12, 48);
-  const canopyGeo = new THREE.ExtrudeGeometry(canopyShape, {
-    depth: 0.12,
-    bevelEnabled: true,
-    bevelThickness: 0.04,
-    bevelSize: 0.05,
-    bevelSegments: 2,
-    curveSegments: 40,
-  });
-  canopyGeo.rotateX(-Math.PI / 2);
-  const canopy = new THREE.Mesh(canopyGeo, materials.canopyPV);
-  canopy.position.set(4, 3.5, 4);
-  canopy.castShadow = true;
-  canopy.userData.restY = canopy.position.y;
-  canopy.userData.layer = 'ramp';
-  g.add(canopy);
-
-  // Steel canopy frame
-  const frame = new THREE.Mesh(
-    new THREE.TorusGeometry(5.5, 0.08, 8, 40),
-    materials.steel
-  );
-  frame.rotation.x = Math.PI / 2;
-  frame.position.set(4, 3.45, 4);
-  frame.scale.set(1.3, 1, 0.85);
-  frame.userData.layer = 'ramp';
-  frame.userData.restY = frame.position.y;
-  g.add(frame);
-
-  [[-1, 1], [4, -1], [8, 2]].forEach(([cx, cz]) => {
-    const col = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.22, 0.28, 3.3, 12),
+  // Side jambs
+  [-6.5, 6.5].forEach((x) => {
+    const jamb = new THREE.Mesh(
+      new THREE.BoxGeometry(0.7, 2.8, 1.4),
       materials.concrete
     );
-    col.position.set(cx + 2, 1.7, cz + 4);
-    col.castShadow = true;
-    col.userData.restY = col.position.y;
-    col.userData.layer = 'ramp';
-    g.add(col);
+    jamb.position.set(x, 1.35, 0.1);
+    jamb.castShadow = true;
+    jamb.userData.layer = 'ramp';
+    jamb.userData.restY = jamb.position.y;
+    g.add(jamb);
   });
 
-  // Parking deck with stall lines + arrows
-  const deck = new THREE.Mesh(
-    new THREE.PlaneGeometry(12, 8),
-    materials.road
+  // Recessed garage floor
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(13, 9),
+    materials.asphalt || materials.road
   );
-  deck.rotation.x = -Math.PI / 2;
-  deck.position.set(4, 0.42, 5.2);
-  deck.receiveShadow = true;
-  deck.userData.layer = 'ramp';
-  deck.userData.restY = deck.position.y;
-  g.add(deck);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.set(0, 0.08, 3.2);
+  floor.receiveShadow = true;
+  floor.userData.layer = 'ramp';
+  floor.userData.restY = floor.position.y;
+  g.add(floor);
 
-  const lineMat = new THREE.MeshBasicMaterial({ color: 0xf5f5f0 });
+  // Warm ceiling light strip
+  const strip = new THREE.Mesh(
+    new THREE.BoxGeometry(11, 0.08, 0.35),
+    materials.amberGlow
+  );
+  strip.position.set(0, 2.55, 1.2);
+  strip.userData.layer = 'ramp';
+  strip.userData.restY = strip.position.y;
+  g.add(strip);
+
+  const warm = new THREE.PointLight(0xffaa44, 1.6, 14, 1.8);
+  warm.position.set(0, 2.4, 2.5);
+  warm.userData.layer = 'ramp';
+  warm.userData.restY = warm.position.y;
+  g.add(warm);
+
+  // Yellow stall lines + white arrows
+  const yellow = new THREE.MeshBasicMaterial({ color: 0xe8c84a });
+  const white = new THREE.MeshBasicMaterial({ color: 0xf2f2ec });
   for (let i = 0; i < 3; i += 1) {
-    const stall = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.08), lineMat);
+    const x = -4 + i * 4;
+    const stall = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 0.1), yellow);
     stall.rotation.x = -Math.PI / 2;
-    stall.position.set(1 + i * 3.5, 0.44, 3.2);
+    stall.position.set(x, 0.1, 1.2);
     stall.userData.layer = 'ramp';
     stall.userData.restY = stall.position.y;
     g.add(stall);
     const stall2 = stall.clone();
-    stall2.position.z = 7.2;
+    stall2.position.z = 5.8;
     g.add(stall2);
-    const side = new THREE.Mesh(new THREE.PlaneGeometry(0.08, 4), lineMat);
+    const side = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 4.6), yellow);
     side.rotation.x = -Math.PI / 2;
-    side.position.set(-0.2 + i * 3.5, 0.44, 5.2);
+    side.position.set(x - 1.4, 0.1, 3.5);
     side.userData.layer = 'ramp';
     side.userData.restY = side.position.y;
     g.add(side);
 
-    // Flow arrow (triangle)
-    const arrow = new THREE.Mesh(
-      new THREE.ConeGeometry(0.25, 0.7, 3),
-      lineMat
-    );
+    const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.8, 3), white);
     arrow.rotation.x = -Math.PI / 2;
-    arrow.position.set(1 + i * 3.5, 0.45, 8.2);
+    arrow.position.set(x, 0.11, 7.2);
     arrow.userData.layer = 'ramp';
     arrow.userData.restY = arrow.position.y;
     g.add(arrow);
-  }
 
-  for (let i = 0; i < 3; i += 1) {
     const car = createSUV(materials);
-    car.position.set(1 + i * 3.6, 0.55, 5.5);
-    car.rotation.y = -0.45;
+    car.position.set(x, 0.2, 3.5);
+    car.rotation.y = Math.PI;
     car.userData.restY = car.position.y;
     car.userData.layer = 'ramp';
     g.add(car);
 
     const post = createChargePost(materials);
-    post.position.set(-0.4 + i * 3.6, 0.55, 3.8);
+    post.position.set(x + 1.5, 0.1, 1.6);
     post.userData.restY = post.position.y;
     post.userData.layer = 'ramp';
     g.add(post);
   }
+
+  return g;
+}
+
+function createRoadNetwork(materials) {
+  const g = new THREE.Group();
+  g.name = 'RoadNetwork';
+  g.userData.layer = 'ramp';
+
+  const asphalt = materials.asphalt || materials.road;
+  const curbMat = materials.concrete;
+  const pathMat = materials.stonePavers || materials.courtyard;
+
+  // Main asphalt trunk — west from V2G then south curve
+  const roadPts = [
+    new THREE.Vector3(-28, 0.06, 8),
+    new THREE.Vector3(-36, 0.06, 14),
+    new THREE.Vector3(-40, 0.06, 28),
+    new THREE.Vector3(-32, 0.06, 42),
+    new THREE.Vector3(-18, 0.06, 48),
+  ];
+  const roadCurve = new THREE.CatmullRomCurve3(roadPts);
+  const roadMesh = new THREE.Mesh(
+    new THREE.TubeGeometry(roadCurve, 64, 2.4, 8, false),
+    asphalt
+  );
+  // Flatten tube into road ribbon
+  roadMesh.scale.set(1, 0.08, 1);
+  roadMesh.receiveShadow = true;
+  roadMesh.userData.layer = 'ramp';
+  roadMesh.userData.restY = 0;
+  g.add(roadMesh);
+
+  // Flat asphalt apron in front of V2G
+  const apron = new THREE.Mesh(new THREE.PlaneGeometry(18, 14), asphalt);
+  apron.rotation.x = -Math.PI / 2;
+  apron.position.set(-26, 0.05, 10);
+  apron.receiveShadow = true;
+  apron.userData.layer = 'ramp';
+  apron.userData.restY = apron.position.y;
+  g.add(apron);
+
+  // Curb stones along main road samples
+  for (let i = 0; i < 18; i += 1) {
+    const t = i / 17;
+    const p = roadCurve.getPoint(t);
+    const tan = roadCurve.getTangent(t);
+    const side = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
+    [-1, 1].forEach((s) => {
+      const curb = new THREE.Mesh(
+        new THREE.BoxGeometry(1.1, 0.18, 0.22),
+        curbMat
+      );
+      curb.position.copy(p).addScaledVector(side, s * 2.6);
+      curb.position.y = 0.12;
+      curb.lookAt(p.clone().add(tan));
+      curb.userData.layer = 'ramp';
+      curb.userData.restY = curb.position.y;
+      g.add(curb);
+
+      // Low landscape bollard lights
+      if (i % 2 === 0 && s > 0) {
+        const lamp = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.06, 0.08, 0.55, 8),
+          materials.steel
+        );
+        lamp.position.copy(curb.position);
+        lamp.position.y = 0.35;
+        lamp.userData.layer = 'ramp';
+        lamp.userData.restY = lamp.position.y;
+        g.add(lamp);
+        const glow = new THREE.Mesh(
+          new THREE.SphereGeometry(0.08, 8, 8),
+          materials.amberGlow
+        );
+        glow.position.copy(lamp.position);
+        glow.position.y += 0.32;
+        glow.userData.layer = 'ramp';
+        glow.userData.restY = glow.position.y;
+        g.add(glow);
+      }
+    });
+  }
+
+  // Light-grey stone walkway — east spiral toward dome entrance
+  const pathPts = [];
+  for (let i = 0; i <= 28; i += 1) {
+    const t = i / 28;
+    const a = -0.4 + t * 1.8;
+    const r = 30 - t * 16;
+    pathPts.push(new THREE.Vector3(Math.cos(a) * r, 0.07, Math.sin(a) * r + 4));
+  }
+  const pathCurve = new THREE.CatmullRomCurve3(pathPts);
+  const pathMesh = new THREE.Mesh(
+    new THREE.TubeGeometry(pathCurve, 80, 1.35, 6, false),
+    pathMat
+  );
+  pathMesh.scale.set(1, 0.06, 1);
+  pathMesh.receiveShadow = true;
+  pathMesh.userData.layer = 'ramp';
+  pathMesh.userData.restY = 0;
+  g.add(pathMesh);
+
+  // Final approach to podium
+  const entry = new THREE.Mesh(new THREE.PlaneGeometry(5, 10), pathMat);
+  entry.rotation.x = -Math.PI / 2;
+  entry.position.set(8, 0.08, 14);
+  entry.rotation.z = -0.35;
+  entry.receiveShadow = true;
+  entry.userData.layer = 'ramp';
+  entry.userData.restY = entry.position.y;
+  g.add(entry);
 
   return g;
 }

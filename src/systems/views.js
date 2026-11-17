@@ -3,8 +3,9 @@ import * as THREE from 'three';
 export const VIEW_PRESETS = {
   aerial: {
     label: '鸟瞰全景',
-    position: new THREE.Vector3(38, 32, 42),
-    target: new THREE.Vector3(0, 6, 0),
+    // Low half-aerial: ~18 m eye height, ~52 m stand-off
+    position: new THREE.Vector3(36, 18, 38),
+    target: new THREE.Vector3(0, 5, 2),
   },
   human: {
     label: '人视仰拍',

@@ -4,202 +4,113 @@ import { createTwistedLeafGeometry, GOLDEN_ANGLE } from '../geometry/helpers.js'
 const PETAL_COUNT = 24;
 
 /**
- * 24 Fibonacci sunflower petals — opened crown around the dome.
- * Radius +18%, petal size −15%; trunks anchor on outer ring truss (no dome pierce).
+ * 24 Fibonacci sunflower petals — near-horizontal crown (18–35°)
+ * on white dendritic columns anchored to the podium roof (no ring truss / windmill masts).
  */
 export function createPetalArray(materials) {
   const group = new THREE.Group();
   group.name = 'PetalArray';
   group.userData.petals = [];
 
-  // Dual-tube white ring truss at dome waist — petal roots mount outside glass
-  const RING_R = 16.2;
-  const RING_Y = 5.35;
-  const ringTruss = createRingTruss(materials, RING_R, RING_Y);
-  ringTruss.userData.layer = 'roof';
-  ringTruss.userData.restY = 0;
-  group.add(ringTruss);
-
-  // Lower terrace ring (visual podium rail)
-  const outerRing = new THREE.Mesh(
-    new THREE.TorusGeometry(17.8, 0.22, 10, 80),
+  // Soft podium rail only — no elevated scaffold ring
+  const podiumRing = new THREE.Mesh(
+    new THREE.TorusGeometry(14.2, 0.16, 10, 72),
     materials.concrete
   );
-  outerRing.rotation.x = Math.PI / 2;
-  outerRing.position.y = 3.0;
-  outerRing.castShadow = true;
-  outerRing.userData.layer = 'roof';
-  outerRing.userData.restY = outerRing.position.y;
-  group.add(outerRing);
+  podiumRing.rotation.x = Math.PI / 2;
+  podiumRing.position.y = 4.05;
+  podiumRing.castShadow = true;
+  podiumRing.userData.layer = 'roof';
+  podiumRing.userData.restY = podiumRing.position.y;
+  group.add(podiumRing);
 
-  // All petals mount OUTSIDE ring truss (radius ≥ RING_R) so trusses never pierce glass
+  // Inner 10 — closer ring on upper terrace
   for (let i = 0; i < 10; i += 1) {
     const angle = i * GOLDEN_ANGLE;
+    const tiltDeg = 18 + (i % 5) * 2.5; // 18–28°
     addSunflowerPetal(group, materials, {
       index: i,
       angle,
-      radius: RING_R + 0.55 + (i % 3) * 0.25,
-      baseY: RING_Y,
-      trunkH: 4.2 + (i % 4) * 0.25,
-      length: 6.4 * 0.85,
-      width: 2.35 * 0.85,
-      scale: 0.92 * 0.85,
+      radius: 11.2 + (i % 3) * 0.35,
+      baseY: 4.05,
+      trunkH: 2.35 + (i % 3) * 0.18,
+      length: 7.2,
+      width: 2.55,
+      scale: 0.95,
       zone: 'inner',
-      lean: 0.38,
+      tiltDeg,
     });
   }
 
+  // Outer 14 — larger outward bloom
   for (let i = 0; i < 14; i += 1) {
-    const angle = i * GOLDEN_ANGLE + 0.4;
+    const angle = i * GOLDEN_ANGLE + 0.35;
+    const tiltDeg = 22 + (i % 6) * 2.2; // 22–35°
     addSunflowerPetal(group, materials, {
       index: 10 + i,
       angle,
-      radius: RING_R + 2.4 + (i % 5) * 0.45,
-      baseY: RING_Y - 0.1,
-      trunkH: 5.2 + (i % 5) * 0.3,
-      length: 9.2 * 0.85,
-      width: 3.1 * 0.85,
-      scale: 1.08 * 0.85,
+      radius: 14.6 + (i % 5) * 0.4,
+      baseY: 4.0,
+      trunkH: 2.55 + (i % 4) * 0.2,
+      length: 8.8,
+      width: 2.95,
+      scale: 1.05,
       zone: 'outer',
-      lean: 0.5,
+      tiltDeg,
     });
   }
 
   return group;
 }
 
-/** White dual-tube spatial ring truss with node plates for petal anchors */
-function createRingTruss(materials, radius, y) {
-  const g = new THREE.Group();
-  g.name = 'RingTruss';
-  g.position.y = y;
-
-  const tubeA = new THREE.Mesh(
-    new THREE.TorusGeometry(radius, 0.14, 12, 96),
-    materials.steel
-  );
-  tubeA.rotation.x = Math.PI / 2;
-  tubeA.position.y = 0.28;
-  tubeA.castShadow = true;
-  g.add(tubeA);
-
-  const tubeB = new THREE.Mesh(
-    new THREE.TorusGeometry(radius, 0.12, 12, 96),
-    materials.steel
-  );
-  tubeB.rotation.x = Math.PI / 2;
-  tubeB.position.y = -0.28;
-  tubeB.castShadow = true;
-  g.add(tubeB);
-
-  // Diagonal lacing between dual tubes
-  for (let i = 0; i < 48; i += 1) {
-    const t0 = (i / 48) * Math.PI * 2;
-    const t1 = ((i + 0.5) / 48) * Math.PI * 2;
-    const p0 = new THREE.Vector3(Math.cos(t0) * radius, 0.28, Math.sin(t0) * radius);
-    const p1 = new THREE.Vector3(Math.cos(t1) * radius, -0.28, Math.sin(t1) * radius);
-    const mid = p0.clone().add(p1).multiplyScalar(0.5);
-    const len = p0.distanceTo(p1);
-    const lace = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.035, 0.035, len, 6),
-      materials.steel
-    );
-    lace.position.copy(mid);
-    lace.lookAt(p1);
-    lace.rotateX(Math.PI / 2);
-    lace.castShadow = true;
-    g.add(lace);
-  }
-
-  // Outer node plates — petal hydraulic bases sit here (outside glass)
-  for (let i = 0; i < 24; i += 1) {
-    const t = (i / 24) * Math.PI * 2;
-    const node = new THREE.Mesh(
-      new THREE.BoxGeometry(0.55, 0.22, 0.7),
-      materials.steel
-    );
-    node.position.set(Math.cos(t) * (radius + 0.35), 0, Math.sin(t) * (radius + 0.35));
-    node.lookAt(0, 0, 0);
-    node.castShadow = true;
-    g.add(node);
-  }
-
-  return g;
-}
-
 function addSunflowerPetal(group, materials, cfg) {
   const {
-    index, angle, radius, baseY, trunkH, length, width, scale, zone, lean,
+    index, angle, radius, baseY, trunkH, length, width, scale, zone, tiltDeg,
   } = cfg;
 
-  // Root mount on ring / terrace
   const root = new THREE.Group();
   root.name = `PetalRoot_${index}`;
   root.position.set(Math.cos(angle) * radius, baseY, Math.sin(angle) * radius);
   root.userData.layer = 'petals';
   root.userData.restY = root.position.y;
 
-  // Hydraulic base plate
-  const base = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.55, 0.7, 0.42, 14),
-    materials.steel
-  );
-  base.castShadow = true;
-  root.add(base);
+  // White dendritic column — branches cradle the petal from below
+  const tree = createDendriticColumn(materials, trunkH, width);
+  root.add(tree);
 
-  const collar = new THREE.Mesh(
-    new THREE.TorusGeometry(0.42, 0.06, 8, 20),
-    materials.steel
-  );
-  collar.rotation.x = Math.PI / 2;
-  collar.position.y = 0.22;
-  root.add(collar);
-
-  // Tracking hinge at top of trunk
   const hinge = new THREE.Group();
   hinge.name = `PetalHinge_${index}`;
   hinge.position.y = trunkH;
 
-  // Leaf length is +Z; Three.lookAt aims local -Z at target.
-  // lookAt aims local −Z; aim at center so petal +Z blooms radially outward
+  // lookAt aims local −Z at center → petal +Z blooms radially outward
   const worldHinge = root.position.clone().add(new THREE.Vector3(0, trunkH, 0));
-  const centerAim = new THREE.Vector3(0, worldHinge.y + lean * 1.8, 0);
+  const centerAim = new THREE.Vector3(0, worldHinge.y + 0.4, 0);
   const tmp = new THREE.Object3D();
   tmp.position.copy(worldHinge);
   tmp.up.set(0, 1, 0);
   tmp.lookAt(centerAim);
   hinge.quaternion.copy(tmp.quaternion);
-  // Slightly flatter crown so aerial view keeps the BIPV dome open
-  hinge.rotateX(-1.2 + lean * 0.08);
-  hinge.rotateZ(((index % 7) - 3) * 0.02);
+
+  // Near-horizontal crown: tiltDeg from horizontal (18–35°)
+  const tiltRad = THREE.MathUtils.degToRad(tiltDeg);
+  hinge.rotateX(-(Math.PI / 2 - tiltRad));
+  hinge.rotateZ(((index % 7) - 3) * 0.018);
   hinge.userData.baseQuaternion = hinge.quaternion.clone();
   hinge.userData.spiralIndex = index;
   hinge.userData.zone = zone;
+  hinge.userData.tiltDeg = tiltDeg;
   hinge.userData.layer = 'petals';
   hinge.userData.restY = hinge.position.y;
 
-  // Y-truss trunk — light structural grey like reference renders
-  const truss = createBranchingYTruss(materials, trunkH);
-  root.add(truss);
-
-  // Pivot sphere at hinge
   const joint = new THREE.Mesh(
-    new THREE.SphereGeometry(0.28, 14, 12),
+    new THREE.SphereGeometry(0.18, 12, 10),
     materials.steel
   );
   joint.castShadow = true;
   hinge.add(joint);
 
-  const actuator = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.08, 0.1, 0.7, 10),
-    materials.carbon
-  );
-  actuator.position.set(0, -0.35, 0);
-  hinge.add(actuator);
-
-  // Twisted leaf — extends along +Z from hinge
   const petal = createPetalMesh(materials, length, width, scale, index);
-  petal.position.set(0, 0.05, 0.35);
+  petal.position.set(0, 0.02, 0.25);
   hinge.add(petal);
 
   root.add(hinge);
@@ -207,52 +118,66 @@ function addSunflowerPetal(group, materials, cfg) {
   group.userData.petals.push({ hinge, root, petal, index });
 }
 
-function createBranchingYTruss(materials, height) {
+/** Biomimetic white tree column with 3–4 streamline ribs cradling the petal */
+function createDendriticColumn(materials, height, petalWidth) {
   const g = new THREE.Group();
   const mat = materials.steel;
+
   const trunk = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.22, 0.32, height * 0.7, 12),
+    new THREE.CylinderGeometry(0.11, 0.22, height * 0.55, 12),
     mat
   );
-  trunk.position.y = height * 0.35;
+  trunk.position.y = height * 0.28;
   trunk.castShadow = true;
   g.add(trunk);
 
-  const forkY = height * 0.68;
-  [-1, 1].forEach((side) => {
-    const armLen = height * 0.42;
+  const flare = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.28, 0.18, 0.22, 12),
+    mat
+  );
+  flare.position.y = 0.08;
+  flare.castShadow = true;
+  g.add(flare);
+
+  const forkY = height * 0.52;
+  const ribs = 4;
+  for (let i = 0; i < ribs; i += 1) {
+    const t = (i / ribs) * Math.PI * 2 + 0.2;
+    const spread = 0.45 + petalWidth * 0.12;
+    const armLen = height * 0.48;
     const arm = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.1, 0.16, armLen, 10),
+      new THREE.CylinderGeometry(0.045, 0.09, armLen, 8),
       mat
     );
-    arm.position.set(side * 0.75, forkY + armLen * 0.22, 0.45);
-    arm.rotation.z = side * 0.62;
-    arm.rotation.x = -0.5;
+    arm.position.set(
+      Math.cos(t) * spread * 0.55,
+      forkY + armLen * 0.28,
+      Math.sin(t) * spread * 0.35 + 0.25
+    );
+    arm.rotation.z = Math.cos(t) * 0.55;
+    arm.rotation.x = -0.55 - Math.abs(Math.sin(t)) * 0.2;
     arm.castShadow = true;
     g.add(arm);
 
     const tip = new THREE.Mesh(
-      new THREE.SphereGeometry(0.14, 10, 10),
-      materials.carbon
+      new THREE.SphereGeometry(0.07, 8, 8),
+      mat
     );
-    tip.position.set(side * 1.25, forkY + armLen * 0.52, 0.9);
+    tip.position.set(
+      Math.cos(t) * spread * 0.95,
+      forkY + armLen * 0.55,
+      Math.sin(t) * spread * 0.55 + 0.55
+    );
     tip.castShadow = true;
     g.add(tip);
-  });
+  }
 
-  const brace = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.06, 0.06, 2.1, 8),
-    mat
-  );
-  brace.rotation.z = Math.PI / 2;
-  brace.position.set(0, forkY + 0.4, 0.5);
-  g.add(brace);
-
+  // Slim central shaft to hinge
   const shaft = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.14, 0.18, height * 0.3, 10),
+    new THREE.CylinderGeometry(0.07, 0.1, height * 0.38, 10),
     mat
   );
-  shaft.position.y = height * 0.85;
+  shaft.position.y = height * 0.78;
   shaft.castShadow = true;
   g.add(shaft);
 
@@ -264,141 +189,59 @@ function createPetalMesh(materials, length, width, scale, seed) {
   const leafParams = {
     length,
     width,
-    thickness: 0.16,
-    camber: 0.85 + (seed % 5) * 0.05,
-    twist: 0.95 + (seed % 4) * 0.08,
-    tipDroop: 1.15 + (seed % 3) * 0.12,
+    thickness: 0.14,
+    camber: 0.55 + (seed % 5) * 0.04,
+    twist: 0.55 + (seed % 4) * 0.06,
+    tipDroop: 0.55 + (seed % 3) * 0.08,
     segsL: 52,
     segsW: 20,
   };
   const geo = createTwistedLeafGeometry(leafParams);
 
   const body = new THREE.Mesh(geo, materials.petalBody.clone());
-  body.material.emissiveIntensity = 0.22 + (seed % 4) * 0.03;
+  body.material.emissiveIntensity = 0.12 + (seed % 4) * 0.02;
   body.castShadow = true;
   body.receiveShadow = true;
   g.add(body);
 
-  // Champagne-gold aluminum perimeter frame
   const rim = createChampagneRim(leafParams, materials.champagneGold || materials.goldBusbar);
   if (rim) g.add(rim);
 
-  // Center gold busbar highlight
-  const edge = new THREE.Mesh(
-    new THREE.BoxGeometry(0.035, 0.025, length * 0.88),
-    materials.goldBusbar
+  // Champagne-gold laser busbars
+  const busMat = materials.goldBusbar;
+  const spine = new THREE.Mesh(
+    new THREE.BoxGeometry(0.04, 0.02, length * 0.9),
+    busMat
   );
-  edge.position.set(0, 0.09, length * 0.45);
-  g.add(edge);
+  spine.position.set(0, 0.08, length * 0.45);
+  g.add(spine);
 
-  // Underside Y-type carbon fiber truss (readable from worm's-eye views)
-  const underside = createPetalUndersideTruss(length, width, materials);
-  g.add(underside);
+  for (let i = 0; i < 6; i += 1) {
+    const finger = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.42, 0.012, 0.025),
+      busMat
+    );
+    finger.position.set(0, 0.075, length * (0.18 + i * 0.12));
+    finger.rotation.y = (i % 2 === 0 ? 0.08 : -0.08);
+    g.add(finger);
+  }
+
+  // Slim carbon underside ribs (not heavy scaffold)
+  const rib = new THREE.Mesh(
+    new THREE.BoxGeometry(0.04, 0.04, length * 0.75),
+    materials.carbon
+  );
+  rib.position.set(0, -0.05, length * 0.4);
+  rib.castShadow = true;
+  g.add(rib);
 
   g.scale.setScalar(scale);
   return g;
 }
 
-/** Deep-grey Y carbon truss + hydraulic actuator detail on petal back */
-function createPetalUndersideTruss(length, width, materials) {
-  const g = new THREE.Group();
-  g.name = 'PetalUnderside';
-
-  const carbon = materials.carbon;
-  const steel = materials.steel;
-
-  // Central spine
-  const spine = new THREE.Mesh(
-    new THREE.BoxGeometry(0.08, 0.07, length * 0.9),
-    carbon
-  );
-  spine.position.set(0, -0.08, length * 0.45);
-  spine.castShadow = true;
-  g.add(spine);
-
-  // Y-forks along length
-  const forks = 5;
-  for (let i = 0; i < forks; i += 1) {
-    const v = 0.18 + (i / (forks - 1)) * 0.62;
-    const z = v * length;
-    const halfSpan = width * (0.22 + Math.sin(v * Math.PI) * 0.28);
-    [-1, 1].forEach((side) => {
-      const arm = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.028, 0.04, halfSpan * 1.05, 6),
-        carbon
-      );
-      arm.position.set(side * halfSpan * 0.48, -0.1, z);
-      arm.rotation.z = side * (0.95 + (1 - v) * 0.25);
-      arm.rotation.x = 0.15;
-      arm.castShadow = true;
-      g.add(arm);
-
-      const tip = new THREE.Mesh(
-        new THREE.SphereGeometry(0.045, 6, 6),
-        carbon
-      );
-      tip.position.set(side * halfSpan * 0.95, -0.09, z);
-      g.add(tip);
-    });
-
-    // Cross brace
-    const brace = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.018, 0.018, halfSpan * 1.7, 5),
-      carbon
-    );
-    brace.rotation.z = Math.PI / 2;
-    brace.position.set(0, -0.095, z);
-    g.add(brace);
-  }
-
-  // Hydraulic pivot block near root (metal tracking joint)
-  const pivotBlock = new THREE.Mesh(
-    new THREE.BoxGeometry(0.32, 0.18, 0.42),
-    steel
-  );
-  pivotBlock.position.set(0, -0.14, 0.35);
-  pivotBlock.castShadow = true;
-  g.add(pivotBlock);
-
-  const cyl = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.055, 0.065, 0.55, 10),
-    carbon
-  );
-  cyl.rotation.x = Math.PI / 2;
-  cyl.position.set(0.18, -0.2, 0.55);
-  cyl.castShadow = true;
-  g.add(cyl);
-
-  const rod = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.025, 0.025, 0.7, 8),
-    steel
-  );
-  rod.rotation.x = Math.PI / 2;
-  rod.position.set(0.18, -0.2, 0.95);
-  g.add(rod);
-
-  const clevis = new THREE.Mesh(
-    new THREE.TorusGeometry(0.07, 0.018, 6, 12),
-    steel
-  );
-  clevis.position.set(0.18, -0.2, 1.25);
-  g.add(clevis);
-
-  // Side hydraulic twin
-  const cyl2 = cyl.clone();
-  cyl2.position.x = -0.18;
-  g.add(cyl2);
-  const rod2 = rod.clone();
-  rod2.position.x = -0.18;
-  g.add(rod2);
-
-  return g;
-}
-
-/** Tube rim following twisted-leaf silhouette */
 function createChampagneRim(params, material) {
   const {
-    length, width, camber, twist, tipDroop, thickness = 0.16,
+    length, width, camber, twist, tipDroop, thickness = 0.14,
   } = params;
   const pts = [];
   const samples = 48;
@@ -432,7 +275,7 @@ function createChampagneRim(params, material) {
   if (pts.length < 4) return null;
   const curve = new THREE.CatmullRomCurve3(pts, true);
   const tube = new THREE.Mesh(
-    new THREE.TubeGeometry(curve, 120, 0.028, 6, true),
+    new THREE.TubeGeometry(curve, 120, 0.022, 6, true),
     material
   );
   tube.castShadow = true;
@@ -448,9 +291,10 @@ export function updatePetalTracking(petalArray, sunDirection) {
     const worldPos = new THREE.Vector3();
     hinge.getWorldPosition(worldPos);
 
-    const stagger = Math.sin(idx * 0.65) * 0.05;
+    const stagger = Math.sin(idx * 0.65) * 0.04;
     const targetDir = sun.clone();
-    targetDir.y = THREE.MathUtils.clamp(targetDir.y + stagger, 0.12, 1);
+    // Keep tracking shallow — preserve near-horizontal crown
+    targetDir.y = THREE.MathUtils.clamp(targetDir.y * 0.45 + 0.35 + stagger, 0.28, 0.72);
     targetDir.normalize();
 
     const lookTarget = worldPos.clone().add(targetDir);
@@ -458,13 +302,15 @@ export function updatePetalTracking(petalArray, sunDirection) {
     tmp.position.copy(worldPos);
     tmp.up.set(0, 1, 0);
     tmp.lookAt(lookTarget);
-    // Keep leaf open / facing sun
-    tmp.rotateX(-1.2);
+
+    const tiltDeg = hinge.userData.tiltDeg ?? 25;
+    const tiltRad = THREE.MathUtils.degToRad(tiltDeg);
+    tmp.rotateX(-(Math.PI / 2 - tiltRad));
 
     const qBase = hinge.userData.baseQuaternion;
-    const blend = hinge.userData.zone === 'inner' ? 0.78 : 0.88;
+    const blend = hinge.userData.zone === 'inner' ? 0.55 : 0.62;
     const qBlend = qBase.clone().slerp(tmp.quaternion, blend);
-    hinge.quaternion.slerp(qBlend, 0.25);
+    hinge.quaternion.slerp(qBlend, 0.2);
 
     alignmentSum += Math.max(0, targetDir.dot(sun));
   });

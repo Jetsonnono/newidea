@@ -50,10 +50,10 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   500
 );
-camera.position.set(28, 26, 32);
+camera.position.set(36, 18, 38);
 
 const controls = new OrbitControls(camera, canvas);
-controls.target.set(0, 5, 0);
+controls.target.set(0, 5, 2);
 controls.enableDamping = true;
 controls.dampingFactor = 0.06;
 controls.maxPolarAngle = Math.PI * 0.49;
@@ -91,7 +91,7 @@ function setEnvironmentVisible(visible) {
   if (env?.group) env.group.visible = visible;
   if (sunRig?.sunOrb) sunRig.sunOrb.visible = visible;
   if (visible) {
-    if (!scene.fog) scene.fog = new THREE.FogExp2(0xd8e2ec, 0.0018);
+    if (!scene.fog) scene.fog = new THREE.FogExp2(0xd8e2ec, 0.0006);
   } else {
     scene.fog = null;
   }
@@ -156,7 +156,7 @@ function enterMode(mode) {
     setEnvironmentVisible(true);
     scene.background = new THREE.Color(0xd8ddd6);
     scene.backgroundIntensity = 1;
-    scene.fog = new THREE.FogExp2(0xd8e2ec, 0.0018);
+    scene.fog = new THREE.FogExp2(0xd8e2ec, 0.0006);
   } else if (mode !== 'explode' || !ui.isBoardWhite()) {
     atmosphere.updateEnvironment(true);
   }
@@ -250,9 +250,9 @@ function syncSunAndSystems() {
   ui.updatePower(kw, alignment, PEAK_KW);
 
   if (scene.fog && state.mode !== 'wireframe' && !(state.boardWhite && state.mode === 'explode')) {
-    // Keep cool highland mist (0xd8e2ec) with slight day/night value shift
-    scene.fog.color.setHSL(0.58, 0.14, 0.86 + sunState.irradiance * 0.04);
-    scene.fog.density = 0.0018;
+    // Clear highland air — low density so Kunlun ridges stay readable
+    scene.fog.color.setHSL(0.58, 0.18, 0.88 + sunState.irradiance * 0.03);
+    scene.fog.density = 0.0006;
   }
 
   if (!(state.boardWhite && state.mode === 'explode') && state.mode !== 'wireframe') {

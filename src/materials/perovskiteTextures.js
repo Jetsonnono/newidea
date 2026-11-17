@@ -16,12 +16,12 @@ export function createPerovskiteMaps(size = 1024) {
   const roughCtx = roughCanvas.getContext('2d');
   const emisCtx = emisCanvas.getContext('2d');
 
-  // Obsidian → deep violet base
+  // Obsidian dark purple-blue #141226
   const base = mapCtx.createLinearGradient(0, 0, size, size);
-  base.addColorStop(0, '#12081f');
-  base.addColorStop(0.35, '#1c0f38');
-  base.addColorStop(0.7, '#2a1450');
-  base.addColorStop(1, '#0d0718');
+  base.addColorStop(0, '#0e0c1a');
+  base.addColorStop(0.35, '#141226');
+  base.addColorStop(0.7, '#1a1630');
+  base.addColorStop(1, '#0c0a16');
   mapCtx.fillStyle = base;
   mapCtx.fillRect(0, 0, size, size);
 
@@ -88,9 +88,9 @@ export function createPerovskiteMaps(size = 1024) {
     }
   }
 
-  // Dark-gold busbars (primary) — high contrast so they read at mid distance
-  const busGold = 'rgba(220, 180, 95, 1)';
-  const busGoldDim = 'rgba(190, 150, 70, 0.95)';
+  // Champagne-gold #d4af37 laser-etched busbars
+  const busGold = 'rgba(212, 175, 55, 1)';
+  const busGoldDim = 'rgba(200, 160, 50, 0.92)';
   mapCtx.lineCap = 'round';
   roughCtx.strokeStyle = '#d0d0d0';
   emisCtx.strokeStyle = 'rgba(180, 140, 60, 0.55)';
